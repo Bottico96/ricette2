@@ -1394,6 +1394,43 @@ document.addEventListener('click', e=>{
 
 // ── INIT ─────────────────────────────────────────────────
 initDB();
+
+// ── EXPOSE FUNCTIONS TO GLOBAL SCOPE (required for type="module") ──
+window.switchDept = switchDept;
+window.showPage = showPage;
+window.newRecipe = newRecipe;
+window.newSimpleRecipe = newSimpleRecipe;
+window.openRecipe = openRecipe;
+window.saveRecipe = saveRecipe;
+window.saveSimpleRecipe = saveSimpleRecipe;
+window.deleteRecipe = deleteRecipe;
+window.copyToOther = copyToOther;
+window.openPrintModal = openPrintModal;
+window.openPrintModalSimple = openPrintModalSimple;
+window.closePrintModal = closePrintModal;
+window.doPrint = doPrint;
+window.doPrintSimple = doPrintSimple;
+window.addIngFromInput = addIngFromInput;
+window.onIngInput = onIngInput;
+window.onIngKey = onIngKey;
+window.selectIng = selectIng;
+window.removeIng = removeIng;
+window.collect = collect;
+window.collectSimple = collectSimple;
+window.updateExpiry = updateExpiry;
+window.updateExpirySimple = updateExpirySimple;
+window.onNameChange = onNameChange;
+window.closeAnimalModal = closeAnimalModal;
+window.closeCopyModal = closeCopyModal;
+window.renderSidebar = renderSidebar;
+window.renderIngredientsPage = renderIngredientsPage;
+window.renderIngPageGrid = renderIngPageGrid;
+window.saveIngCard = saveIngCard;
+window.addNewIngredientFromPage = addNewIngredientFromPage;
+window.removeIngredientFromDB = removeIngredientFromDB;
+window.renderExpiryPage = renderExpiryPage;
+window.goToRecipe = goToRecipe;
+window.toggleAnimalSource = toggleAnimalSource;
 </script>
 </body>
 </html>

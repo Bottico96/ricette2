@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestione Ricette</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#f4f1ec; --surface:#fff; --border:#e0d9cf; --border2:#c8bfb0;
+  --text:#1a1714; --text2:#6b6258; --text3:#a09588;
+  --lab:#1d4e89; --lab-lt:#eaf0f8; --lab-bd:#b8d0ee;
+  --cuc:#7c3d12; --cuc-lt:#fdf0e6; --cuc-bd:#e8c4a0;
+  --animal:#c0392b; --animal-lt:#fdf3f2; --animal-bd:#f0b8b4;
+  --transfer:#6b3fa0; --transfer-lt:#f4eff9; --transfer-bd:#cdb8e8;
+  --accent:#2d6a4f; --accent-lt:#eaf4ef; --accent-bd:#9fd3b8;
+  --danger:#c0392b; --sh:0 2px 10px rgba(0,0,0,.07); --sh2:0 6px 24px rgba(0,0,0,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+input[type=text],input[type=number],textarea{text-transform:uppercase}
+
+/* PRINT MODAL */
+.print-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:600;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.print-overlay.open{opacity:1;pointer-events:all}
+.print-modal{background:var(--surface);border-radius:16px;padding:28px;width:720px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 12px 48px rgba(0,0,0,.2);display:flex;gap:28px;align-items:flex-start}
+.print-controls{width:200px;flex-shrink:0}
+.print-controls h3{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:700;margin-bottom:16px}
+.print-preview-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:12px}
+.print-preview-wrap label{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);font-weight:600}
+
+/* LABEL — exact 120x76mm at 96dpi */
+.label-120x76{
+  width:453px; height:287px;   /* 120mm × 76mm @ 96dpi */
+  background:#fff;
+  border:1px solid #ccc;
+  border-radius:4px;
+  padding:14px 16px;
+  box-shadow:0 2px 12px rgba(0,0,0,.12);
+  display:flex; flex-direction:column; gap:0;
+  font-family:'Outfit',sans-serif;
+  overflow:hidden; position:relative;
+  box-sizing:border-box;
+}
+.lbl-name{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:700;color:#111;line-height:1.15;text-transform:uppercase;border-bottom:2px solid #111;padding-bottom:6px;margin-bottom:7px}
+.lbl-row{display:flex;align-items:baseline;gap:6px;margin-bottom:4px;font-size:11px}
+.lbl-row-key{color:#666;font-weight:600;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;min-width:70px;font-size:10px}
+.lbl-row-val{color:#111;font-weight:500;font-size:11px;text-transform:uppercase}
+.lbl-row-val.bold{font-weight:700;font-size:12px}
+.lbl-dates{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;padding:6px 8px;background:#f5f5f5;border-radius:4px}
+.lbl-date-block{display:flex;flex-direction:column;gap:1px}
+.lbl-date-key{font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:#888;font-weight:600}
+.lbl-date-val{font-size:13px;font-weight:700;color:#111}
+.lbl-date-val.scad{color:#c0392b}
+.lbl-divider{border:none;border-top:1px solid #e0e0e0;margin:5px 0}
+.lbl-animal-block{margin-bottom:4px}
+.lbl-animal-title{font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:#888;font-weight:600;margin-bottom:2px}
+.lbl-animal-row{font-size:10px;color:#111;font-weight:500;text-transform:uppercase;line-height:1.4}
+.lbl-temp{position:absolute;top:12px;right:14px;font-size:10px;font-weight:700;background:#111;color:#fff;padding:3px 8px;border-radius:4px;text-transform:uppercase}
+.lbl-dept{position:absolute;bottom:10px;right:14px;font-size:9px;color:#aaa;text-transform:uppercase;letter-spacing:.5px}
+.lbl-note{font-size:9px;color:#555;text-transform:uppercase;margin-top:2px;font-style:italic;line-height:1.3}
+
+/* PRINT MEDIA — send exact label to printer */
+@media print{
+  body > *{ display:none !important }
+  #printFrame{ display:block !important; position:fixed; inset:0; z-index:9999 }
+  #printFrame .label-120x76{
+    width:120mm; height:76mm;
+    border:none; box-shadow:none; border-radius:0;
+    padding:4mm 5mm;
+    page-break-after:always;
+  }
+  #printFrame .lbl-name{font-size:16pt}
+  #printFrame .lbl-row-val{font-size:8pt}
+  #printFrame .lbl-row-val.bold{font-size:9pt}
+  #printFrame .lbl-date-val{font-size:10pt}
+  #printFrame .lbl-temp{font-size:7pt;padding:2px 5px}
+  #printFrame .lbl-animal-row{font-size:7pt}
+  #printFrame .lbl-note{font-size:7pt}
+}
+body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+
+/* NAV */
+.topnav{display:flex;align-items:center;justify-content:space-between;background:var(--text);padding:0 24px;height:54px;position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.2)}
+.nav-logo{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:#f4f1ec}
+.nav-logo span{font-weight:400;font-style:italic;color:#9a9288}
+.dept-sw{display:flex;gap:4px;background:rgba(255,255,255,.08);border-radius:10px;padding:4px}
+.dept-btn{padding:6px 20px;border-radius:7px;border:none;cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;transition:all .2s;color:#9a9288;background:transparent}
+.dept-btn.lab-on{background:var(--lab);color:#fff;box-shadow:0 2px 8px rgba(29,78,137,.35)}
+.dept-btn.cuc-on{background:var(--cuc);color:#fff;box-shadow:0 2px 8px rgba(124,61,18,.35)}
+.nav-status{font-size:11px;color:#6b6258;display:flex;align-items:center;gap:6px}
+.sdot{width:7px;height:7px;border-radius:50%;background:#5cb85c;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.nav-page-btn{padding:6px 16px;border-radius:7px;border:1px solid rgba(255,255,255,.18);cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;transition:all .2s;color:#c8bfb0;background:transparent;letter-spacing:.3px}
+.nav-page-btn:hover{background:rgba(255,255,255,.1);color:#f4f1ec}
+.nav-page-btn.page-on{background:rgba(255,255,255,.15);color:#f4f1ec;border-color:rgba(255,255,255,.3)}
+
+/* INGREDIENTS PAGE */
+.ing-page{padding:28px 36px;max-width:980px}
+.ing-page-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:24px;padding-bottom:18px;border-bottom:2px solid var(--border)}
+.ing-page-title{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:700;color:var(--text)}
+.ing-page-title span{display:block;font-family:'Outfit',sans-serif;font-size:12px;color:var(--text3);font-weight:400;margin-top:3px;letter-spacing:.3px}
+.dept-filter{display:flex;gap:6px}
+.df-btn{padding:6px 14px;border-radius:7px;border:1px solid var(--border);font-size:12px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif;transition:all .2s;background:var(--surface);color:var(--text3)}
+.df-btn.on{border-color:var(--accent);color:var(--accent);background:var(--accent-lt)}
+
+.ing-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;margin-bottom:24px}
+.ing-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--sh);transition:box-shadow .2s}
+.ing-card:hover{box-shadow:var(--sh2)}
+.ing-card-head{padding:14px 16px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--animal-lt)}
+.ing-card-name{font-weight:700;font-size:14px;color:var(--animal);display:flex;align-items:center;gap:7px}
+.ing-card-depts{display:flex;gap:4px}
+.ing-card-body{padding:14px 16px}
+.dept-section{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+.dept-section:last-child{margin-bottom:0;padding-bottom:0;border-bottom:none}
+.dept-section-title{font-size:10px;text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.dst-lab{color:var(--lab)}.dst-cuc{color:var(--cuc)}
+.mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mini-field label{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);display:block;margin-bottom:4px;font-weight:500}
+.mini-field input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 9px;color:var(--text);font-family:'Outfit',sans-serif;font-size:12px;outline:none;transition:border-color .2s}
+.mini-field input:focus{border-color:var(--accent)}
+.save-ing-btn{margin-top:10px;width:100%;background:var(--accent);color:#fff;border:none;border-radius:7px;padding:7px;font-family:'Outfit',sans-serif;font-weight:600;font-size:12px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:6px}
+.save-ing-btn:hover{filter:brightness(1.1)}
+.last-update{font-size:10px;color:var(--text3);margin-top:6px;text-align:center}
+.no-animal-page{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:40px;text-align:center;color:var(--text3);font-size:13px}
+
+.ing-page-section-title{font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:600;color:var(--text2);margin-bottom:14px;margin-top:8px;display:flex;align-items:center;gap:8px}
+
+/* EXPIRY PAGE */
+.exp-page{padding:28px 36px;max-width:980px}
+.exp-page-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:24px;padding-bottom:18px;border-bottom:2px solid var(--border)}
+.exp-page-title{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:700;color:var(--text)}
+.exp-page-title span{display:block;font-family:'Outfit',sans-serif;font-size:12px;color:var(--text3);font-weight:400;margin-top:3px}
+.exp-section-title{font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:600;margin:24px 0 12px;display:flex;align-items:center;gap:10px}
+.exp-section-title .count{font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px}
+.exp-table{width:100%;border-collapse:collapse;background:var(--surface);border-radius:12px;overflow:hidden;box-shadow:var(--sh);margin-bottom:8px}
+.exp-table th{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);font-weight:600;padding:10px 14px;border-bottom:2px solid var(--border);text-align:left;background:var(--bg)}
+.exp-table td{padding:11px 14px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle}
+.exp-table tr:last-child td{border-bottom:none}
+.exp-table tr:hover td{background:var(--bg)}
+.exp-row-expired td{background:rgba(192,57,43,.04)}
+.exp-row-today td{background:rgba(230,126,34,.05)}
+.exp-row-soon td{background:rgba(45,106,79,.03)}
+.exp-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700}
+.exp-badge.scaduto{background:rgba(192,57,43,.15);color:var(--danger)}
+.exp-badge.oggi{background:rgba(230,126,34,.15);color:#e67e22}
+.exp-badge.domani{background:rgba(230,126,34,.1);color:#e67e22}
+.exp-badge.presto{background:rgba(45,106,79,.12);color:var(--accent)}
+.exp-link{color:var(--accent);cursor:pointer;font-weight:500;text-decoration:none;background:none;border:none;font-family:'Outfit',sans-serif;font-size:13px;padding:0}
+.exp-link:hover{text-decoration:underline}
+.exp-empty{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:48px;text-align:center;color:var(--text3)}
+.exp-empty .big{font-size:48px;margin-bottom:12px;opacity:.3}
+.exp-empty h3{font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--text2);margin-bottom:6px}
+.exp-refresh{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;font-family:'Outfit',sans-serif;transition:all .2s}
+.exp-refresh:hover{border-color:var(--accent);color:var(--accent)}
+
+/* new ingredient form */
+.add-ing-card{background:var(--surface);border:2px dashed var(--border2);border-radius:12px;padding:20px;margin-bottom:24px}
+.add-ing-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.add-ing-row .field{margin-bottom:0;flex:1;min-width:140px}
+.add-ing-row .btn-save{flex-shrink:0;padding:8px 18px}
+
+/* SHELL */
+.app{display:flex;height:calc(100vh - 54px);overflow:hidden}
+
+/* SIDEBAR */
+.sidebar{width:290px;min-width:290px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.sb-head{padding:14px 14px 10px;border-bottom:1px solid var(--border)}
+.sb-title{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:10px;font-weight:600}
+.btn-new{width:100%;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px 14px;font-family:'Outfit',sans-serif;font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:7px;justify-content:center;transition:all .2s}
+.btn-new:hover{filter:brightness(1.1)}
+.btn-new-simple{width:100%;background:var(--surface);color:var(--text2);border:1px dashed var(--border2);border-radius:8px;padding:8px 14px;font-family:'Outfit',sans-serif;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:7px;justify-content:center;transition:all .2s;margin-top:8px}
+.btn-new-simple:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-lt)}
+.search-box{margin:10px 14px 10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 11px;display:flex;align-items:center;gap:7px}
+.search-box input{background:none;border:none;outline:none;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;width:100%}
+.search-box input::placeholder{color:var(--text3)}
+.r-list{flex:1;overflow-y:auto;padding:0 8px 12px}
+.r-list::-webkit-scrollbar{width:4px}
+.r-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.r-item{padding:10px 11px;border-radius:8px;cursor:pointer;margin-bottom:3px;border:1px solid transparent;transition:all .15s;display:flex;align-items:flex-start;gap:9px}
+.r-item:hover{background:var(--bg);border-color:var(--border)}
+.r-item.active.lab{background:var(--lab-lt);border-color:var(--lab-bd)}
+.r-item.active.cuc{background:var(--cuc-lt);border-color:var(--cuc-bd)}
+.r-dot{width:8px;height:8px;border-radius:50%;margin-top:4px;flex-shrink:0}
+.r-dot.lab{background:var(--lab)}.r-dot.cuc{background:var(--cuc)}
+.r-name{font-weight:500;font-size:13px;line-height:1.3;margin-bottom:4px}
+.r-pills{display:flex;gap:4px;flex-wrap:wrap}
+.pill{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500}
+.pill-lab{background:var(--lab-lt);color:var(--lab)}.pill-cuc{background:var(--cuc-lt);color:var(--cuc)}
+.pill-animal{background:var(--animal-lt);color:var(--animal)}.pill-transfer{background:var(--transfer-lt);color:var(--transfer)}
+.pill-temp{background:var(--accent-lt);color:var(--accent)}
+.empty-state{color:var(--text3);font-size:12px;text-align:center;padding:28px 14px;line-height:1.8}
+
+/* MAIN */
+.main{flex:1;overflow-y:auto;background:var(--bg)}
+.main::-webkit-scrollbar{width:5px}
+.main::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+.welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;min-height:400px;color:var(--text3);gap:10px}
+.welcome-icon{font-size:56px;opacity:.25}
+.welcome h2{font-family:'Cormorant Garamond',serif;font-size:26px;color:var(--text2);font-style:italic}
+
+/* FORM */
+.form-wrap{padding:28px 36px;max-width:860px}
+.form-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px;padding-bottom:18px;border-bottom:2px solid var(--border);gap:20px}
+.ftb{flex:1}
+.ftb-lbl{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);display:block;margin-bottom:6px}
+.ftb-inp{background:none;border:none;outline:none;border-bottom:2px solid transparent;font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:700;color:var(--text);width:100%;transition:border-color .2s;text-transform:uppercase}
+.ftb-inp:focus{border-bottom-color:var(--accent)}
+.ftb-inp::placeholder{color:var(--text3);font-weight:400}
+.dept-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:20px;font-size:11px;font-weight:600;margin-top:8px}
+.dept-badge.lab{background:var(--lab-lt);color:var(--lab);border:1px solid var(--lab-bd)}
+.dept-badge.cuc{background:var(--cuc-lt);color:var(--cuc);border:1px solid var(--cuc-bd)}
+.btn-row{display:flex;align-items:center;gap:8px;padding-top:20px;flex-shrink:0}
+.btn-save{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px 20px;font-family:'Outfit',sans-serif;font-weight:600;font-size:13px;cursor:pointer;transition:all .2s;white-space:nowrap}
+.btn-save:hover{filter:brightness(1.1)}
+.btn-sec{background:transparent;border:1px solid var(--border2);color:var(--text2);border-radius:8px;padding:9px 14px;font-family:'Outfit',sans-serif;font-weight:500;font-size:12px;cursor:pointer;transition:all .2s;white-space:nowrap}
+.btn-sec:hover{border-color:var(--text2);color:var(--text)}
+.btn-del{border-color:var(--danger);color:var(--danger)}
+.btn-del:hover{background:var(--animal-lt)}
+.btn-copy{border-color:var(--transfer);color:var(--transfer)}
+.btn-copy:hover{background:var(--transfer-lt)}
+
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:var(--sh)}
+.card-head{font-family:'Cormorant Garamond',serif;font-size:16px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+/* FIELDS */
+.field{margin-bottom:14px}
+.field:last-child{margin-bottom:0}
+.field label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--text3);margin-bottom:5px;font-weight:500}
+.field input,.field select,.field textarea{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 11px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none;transition:border-color .2s}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent)}
+.field select option{background:var(--surface)}
+.field textarea{resize:vertical;min-height:70px}
+
+/* INGREDIENTS */
+.ing-tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;min-height:28px}
+.ing-tag{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:var(--bg);border:1px solid var(--border);font-size:12px}
+.ing-tag.animal{background:var(--animal-lt);border-color:var(--animal-bd);color:var(--animal)}
+.ing-tag.transfer{background:var(--transfer-lt);border-color:var(--transfer-bd);color:var(--transfer)}
+.ing-tag button{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;line-height:1;padding:0;display:flex}
+.ing-tag button:hover{color:var(--danger)}
+.ing-row{display:flex;gap:7px;position:relative}
+.ing-row input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 11px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none}
+.ing-row input:focus{border-color:var(--accent)}
+.btn-add{background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--accent);cursor:pointer;padding:0 14px;font-size:20px;font-weight:300;transition:all .2s}
+.btn-add:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+.autocomplete{position:absolute;top:100%;left:0;right:50px;background:var(--surface);border:1px solid var(--accent-bd);border-radius:9px;z-index:100;overflow:hidden;margin-top:4px;box-shadow:var(--sh2)}
+.ac-item{padding:9px 14px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:space-between;transition:background .1s}
+.ac-item:hover{background:var(--bg)}
+.ac-badge{font-size:10px;padding:2px 7px;border-radius:10px}
+.ac-new{background:var(--accent-lt);color:var(--accent)}
+.ac-animal{background:var(--animal-lt);color:var(--animal)}
+
+/* ANIMAL BLOCKS */
+.ab{background:var(--animal-lt);border:1px solid var(--animal-bd);border-radius:10px;padding:16px;margin-bottom:12px}
+.ab.from-lab{background:var(--transfer-lt);border-color:var(--transfer-bd)}
+.ab-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.ab-name{font-weight:600;font-size:13px;display:flex;align-items:center;gap:7px}
+.ab-name.ac{color:var(--animal)}.ab-name.tc{color:var(--transfer)}
+.src-toggle{display:flex;gap:4px}
+.src-btn{padding:4px 11px;border-radius:6px;border:1px solid var(--border);font-size:11px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif;transition:all .2s;background:var(--surface);color:var(--text3)}
+.src-btn.on-cuc{background:var(--cuc);color:#fff;border-color:var(--cuc)}
+.src-btn.on-lab{background:var(--lab);color:#fff;border-color:var(--lab)}
+.lab-pull{background:var(--lab-lt);border:1px solid var(--lab-bd);border-radius:7px;padding:10px 13px;font-size:12px;color:var(--lab);display:flex;align-items:flex-start;gap:8px;line-height:1.6}
+.lab-pull .lpi{font-size:15px;flex-shrink:0;margin-top:1px}
+.info-banner{background:var(--accent-lt);border:1px solid var(--accent-bd);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--accent);margin-bottom:14px;display:flex;align-items:flex-start;gap:8px;line-height:1.5}
+.no-animal{color:var(--text3);font-size:12px;font-style:italic;padding:4px 0}
+.shared-badge{font-size:10px;background:var(--lab-lt);color:var(--lab);border:1px solid var(--lab-bd);padding:2px 8px;border-radius:20px;font-weight:500}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;padding:11px 18px;border-radius:10px;font-weight:600;font-size:13px;transform:translateY(80px);opacity:0;transition:all .3s cubic-bezier(.34,1.56,.64,1);z-index:999;display:flex;align-items:center;gap:8px;box-shadow:var(--sh2)}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.ok{background:var(--accent);color:#fff}
+.toast.info{background:var(--lab);color:#fff}
+.toast.warn{background:#e67e22;color:#fff}
+
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.overlay.open{opacity:1;pointer-events:all}
+.modal{background:var(--surface);border-radius:14px;padding:28px;max-width:420px;width:90%;box-shadow:var(--sh2);transform:translateY(20px);transition:transform .2s}
+.overlay.open .modal{transform:translateY(0)}
+.modal h3{font-family:'Cormorant Garamond',serif;font-size:20px;margin-bottom:8px}
+.modal p{font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.6}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end}
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="nav-logo">Cucina <span>& Lab</span></div>
+  <div class="dept-sw">
+    <button class="dept-btn lab-on" id="btnLab" onclick="switchDept('lab')">🔬 Laboratorio</button>
+    <button class="dept-btn" id="btnCuc" onclick="switchDept('cucina')">🍳 Cucina</button>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <button class="nav-page-btn page-on" id="btnPageRecipes" onclick="showPage('recipes')">📋 Ricette</button>
+    <button class="nav-page-btn" id="btnPageIngredients" onclick="showPage('ingredients')">📦 Ingredienti</button>
+    <button class="nav-page-btn" id="btnPageExpiry" onclick="showPage('expiry')">⏰ In Scadenza <span id="expiryNavBadge" style="display:none;background:#c0392b;color:#fff;border-radius:20px;padding:1px 6px;font-size:10px;margin-left:2px"></span></button>
+    <div class="nav-status"><span class="sdot"></span><span id="syncStatus">Connessione…</span></div>
+  </div>
+</nav>
+
+<!-- RECIPES PAGE -->
+<div id="pageRecipes">
+<div class="app">
+  <aside class="sidebar">
+    <div class="sb-head">
+      <div class="sb-title" id="sbTitle">RICETTE LABORATORIO</div>
+      <button class="btn-new" onclick="newRecipe()">＋ Ricetta con Animali</button>
+      <button class="btn-new-simple" onclick="newSimpleRecipe()">＋ Ricetta Semplice</button>
+    </div>
+    <div class="search-box">
+      <span style="color:var(--text3)">🔍</span>
+      <input type="text" id="searchInput" placeholder="Cerca ricetta…" oninput="renderSidebar()">
+    </div>
+    <div class="r-list" id="recipeList"></div>
+  </aside>
+  <main class="main" id="mainArea">
+    <div class="welcome">
+      <div class="welcome-icon">🍽️</div>
+      <h2>Seleziona o crea una ricetta</h2>
+      <p>Stai lavorando nel <span id="welcomeDept">Laboratorio</span></p>
+    </div>
+  </main>
+</div>
+</div>
+
+<!-- INGREDIENTS PAGE -->
+<div id="pageIngredients" style="display:none;height:calc(100vh - 54px);overflow-y:auto">
+  <div class="ing-page">
+    <div class="ing-page-head">
+      <div class="ing-page-title">
+        📦 Ricevimento Merci — <span id="ingPageDeptLabel" style="font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;padding:3px 10px;border-radius:20px;vertical-align:middle"></span>
+        <span>Aggiorna DDT e lotto quando arriva il fornitore — le ricette si aggiornano automaticamente</span>
+      </div>
+    </div>
+
+    <div class="add-ing-card">
+      <div class="add-ing-row">
+        <div class="field" style="flex:2">
+          <label>Aggiungi Prodotto di Origine Animale</label>
+          <input type="text" id="newIngName" placeholder="Es. Salmone, Vitello, Pecorino…" onkeydown="if(event.key==='Enter')addNewIngredientFromPage()">
+        </div>
+        <button class="btn-save" id="btnAddIng" onclick="addNewIngredientFromPage()">＋ Aggiungi</button>
+      </div>
+      <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
+        <div class="search-box" style="margin:0;background:var(--bg)">
+          <span style="color:var(--text3)">🔍</span>
+          <input type="text" id="ingSearch" placeholder="Cerca prodotto…" oninput="renderIngPageGrid()">
+        </div>
+      </div>
+    </div>
+
+    <div id="ingPageGrid" class="ing-grid"></div>
+  </div>
+</div>
+
+<!-- EXPIRY PAGE -->
+<div id="pageExpiry" style="display:none;height:calc(100vh - 54px);overflow-y:auto">
+  <div class="exp-page">
+    <div class="exp-page-head">
+      <div class="exp-page-title">
+        ⛔ Preparazioni Scadute
+        <span>Ricette che hanno superato la data di scadenza — aggiorna la data di produzione per rimuoverle</span>
+      </div>
+      <button class="exp-refresh" onclick="renderExpiryPage()">↻ Aggiorna</button>
+    </div>
+    <div id="expiryPageContent"></div>
+  </div>
+</div>
+
+<!-- PRINT FRAME (hidden, used for actual printing) -->
+<div id="printFrame" style="display:none"></div>
+
+<!-- PRINT MODAL -->
+<div class="print-overlay" id="printOverlay">
+  <div class="print-modal">
+
+    <!-- LEFT: controls -->
+    <div class="print-controls">
+      <h3>🖨️ Stampa Etichetta</h3>
+
+      <div class="field" style="margin-bottom:14px">
+        <label>Numero copie</label>
+        <input type="number" id="printCopies" value="1" min="1" max="50" style="width:100%">
+      </div>
+
+      <div style="font-size:11px;color:var(--text3);margin-bottom:16px;line-height:1.6">
+        Formato: <strong>120 × 76 mm</strong><br>
+        Stampante: <strong>TSC TE200</strong><br>
+        Selezionala nelle impostazioni di stampa Windows.
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn-save" style="width:100%;font-size:14px;padding:11px" onclick="doPrint()">🖨️ Stampa ora</button>
+        <button class="btn-sec" style="width:100%;text-align:center" onclick="closePrintModal()">Annulla</button>
+      </div>
+
+      <div style="margin-top:16px;padding:10px;background:var(--accent-lt);border:1px solid var(--accent-bd);border-radius:8px;font-size:11px;color:var(--accent);line-height:1.6">
+        💡 Assicurati che la TSC TE200 sia selezionata come stampante e che il formato carta sia impostato su <strong>120×76mm</strong>.
+      </div>
+    </div>
+
+    <!-- RIGHT: preview -->
+    <div class="print-preview-wrap">
+      <label>Anteprima Etichetta</label>
+      <div id="labelPreview"></div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="overlay" id="animalOverlay">
+  <div class="modal">
+    <h3>Tipo ingrediente</h3>
+    <p id="animalModalTxt">Questo ingrediente è di origine animale?</p>
+    <div class="modal-btns">
+      <button class="btn-sec" onclick="closeAnimalModal(false)">Non animale</button>
+      <button class="btn-save" onclick="closeAnimalModal(true)">🐄 Sì, origine animale</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="copyOverlay">
+  <div class="modal">
+    <h3 id="copyModalTitle">Copia ricetta</h3>
+    <p id="copyModalTxt">Vuoi copiare questa ricetta nell'altro reparto?</p>
+    <div class="modal-btns">
+      <button class="btn-sec" onclick="closeCopyModal(false)">Annulla</button>
+      <button class="btn-save" onclick="closeCopyModal(true)">⎘ Copia</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════
+// FIREBASE SETUP (compat SDK — funziona da file://)
+// ═══════════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyD7vZlwcg1EgZhBucjz7WoiSMTIs6ouXRQ",
+  authDomain: "ricettecontraste.firebaseapp.com",
+  projectId: "ricettecontraste",
+  storageBucket: "ricettecontraste.firebasestorage.app",
+  messagingSenderId: "861699797515",
+  appId: "1:861699797515:web:8fc4e58e527609cc5d8d0e"
+};
+
+firebase.initializeApp(firebaseConfig);
+const fireDB = firebase.firestore();
+const DB_DOC = fireDB.collection('ristorante').doc('database');
+
+// ── DATABASE ──────────────────────────────────────────────
+const DEFAULT_DB = {
+  ingredients:[
+    {name:'BURRO',isAnimal:true},{name:'UOVA',isAnimal:true},
+    {name:'LATTE INTERO',isAnimal:true},{name:'PANNA FRESCA',isAnimal:true},
+    {name:'PARMIGIANO REGGIANO',isAnimal:true},{name:'PROSCIUTTO CRUDO',isAnimal:true},
+    {name:'PANCETTA',isAnimal:true},{name:'TENDINI',isAnimal:true},
+    {name:'MANZO',isAnimal:true},{name:'FARINA 00',isAnimal:false},
+    {name:'SALE',isAnimal:false},{name:'OLIO EVO',isAnimal:false},
+    {name:'AGLIO',isAnimal:false},{name:'POMODORI',isAnimal:false},{name:'BASILICO',isAnimal:false},
+  ],
+  animalData:{ lab:{}, cucina:{} },
+  recipes:{ lab:[], cucina:[] }
+};
+
+let db = JSON.parse(JSON.stringify(DEFAULT_DB));
+let _saving = false;
+
+// Show sync status in nav
+function setSyncStatus(msg, color){
+  const el = document.getElementById('syncStatus');
+  if(el){ el.textContent = msg; el.style.color = color||'#6b6258'; }
+}
+
+async function saveDB(){
+  if(_saving) return;
+  _saving = true;
+  setSyncStatus('💾 Salvataggio…','#e67e22');
+  try{
+    await DB_DOC.set({ data: JSON.stringify(db) });
+    setSyncStatus('✓ Sincronizzato','#2d6a4f');
+  } catch(e){
+    console.error(e);
+    setSyncStatus('⚠ Errore sync','#c0392b');
+  }
+  _saving = false;
+}
+
+// Real-time listener: when another PC saves, this PC updates automatically
+function startRealtimeSync(){
+  DB_DOC.onSnapshot((snap)=>{
+    if(!snap || !snap.exists()) return;
+    try{
+      const remote = JSON.parse(snap.data().data);
+      db = normalizeDB(remote);
+      // Refresh UI without disturbing current dept or open recipe
+      renderSidebar();
+      if(currentPage==='ingredients') renderIngredientsPage();
+      if(currentPage==='expiry')      renderExpiryPage();
+      updateExpiryBadge();
+      // Re-render open recipe if it still exists in the new data
+      if(curId){
+        const r = db.recipes[dept].find(r=>r.id===curId);
+        if(r) renderForm(r);
+      }
+      setSyncStatus('✓ Sincronizzato','#2d6a4f');
+    } catch(e){ console.error('Sync parse error',e); }
+  });
+}
+
+function normalizeDB(d){
+  // Normalize all text fields to UPPERCASE
+  if(d.ingredients) d.ingredients = d.ingredients.map(i=>({...i, name: i.name.toUpperCase()}));
+  if(d.recipes){
+    ['lab','cucina'].forEach(dept=>{
+      if(d.recipes[dept]) d.recipes[dept] = d.recipes[dept].map(r=>({
+        ...r,
+        name: (r.name||'').toUpperCase(),
+        ingredients: (r.ingredients||[]).map(i=>i.toUpperCase()),
+        animalSources: Object.fromEntries(Object.entries(r.animalSources||{}).map(([k,v])=>[k.toUpperCase(),v])),
+        note: (r.note||'').toUpperCase()
+      }));
+    });
+  }
+  if(d.animalData){
+    ['lab','cucina'].forEach(dept=>{
+      if(d.animalData[dept]){
+        const normalized = {};
+        Object.entries(d.animalData[dept]).forEach(([k,v])=>{
+          normalized[k.toUpperCase()] = {
+            ...v,
+            fornitore: (v.fornitore||'').toUpperCase(),
+            ddt: (v.ddt||'').toUpperCase(),
+            lotto: (v.lotto||'').toUpperCase()
+          };
+        });
+        d.animalData[dept] = normalized;
+      }
+    });
+  }
+  return d;
+}
+
+async function initDB(){
+  setSyncStatus('⟳ Connessione…','#e67e22');
+  try{
+    const snap = await DB_DOC.get();
+    if(snap && snap.exists()){
+      db = normalizeDB(JSON.parse(snap.data().data));
+    } else {
+      // First time: write defaults to Firebase
+      await DB_DOC.set({ data: JSON.stringify(db) });
+    }
+    setSyncStatus('✓ Sincronizzato','#2d6a4f');
+  } catch(e){
+    console.error('Firebase init error', e);
+    setSyncStatus('⚠ Offline','#c0392b');
+  }
+  startRealtimeSync();
+  renderSidebar();
+  updateExpiryBadge();
+}
+
+// ── STATE ────────────────────────────────────────────────
+let dept = 'lab';
+let curId = null;
+let resolveAnimal = null;
+let resolveCopy   = null;
+
+// ── UTILS ────────────────────────────────────────────────
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2) }
+function today(){ return new Date().toISOString().split('T')[0] }
+function isAnimal(n){ const f=db.ingredients.find(i=>i.name.toLowerCase()===n.toLowerCase()); return f?f.isAnimal:false }
+
+function calcExpiry(dataProd, giorni){
+  if(!dataProd || !giorni) return '';
+  const d = new Date(dataProd);
+  d.setDate(d.getDate() + parseInt(giorni));
+  return d.toISOString().split('T')[0];
+}
+
+function formatDate(iso){
+  if(!iso) return '';
+  const [y,m,d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+function other(){ return dept==='lab'?'cucina':'lab' }
+function label(d){ return d==='lab'?'Laboratorio':'Cucina' }
+
+function toast(msg, type='ok'){
+  const t=document.getElementById('toast');
+  t.className='toast '+type;
+  t.innerHTML=(type==='ok'?'✓ ':type==='info'?'ℹ ':'⚠ ')+msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+// ── DEPT SWITCH ──────────────────────────────────────────
+function switchDept(d){
+  dept=d; curId=null;
+  document.getElementById('btnLab').className='dept-btn'+(d==='lab'?' lab-on':'');
+  document.getElementById('btnCuc').className='dept-btn'+(d==='cucina'?' cuc-on':'');
+  document.getElementById('sbTitle').textContent='RICETTE '+label(d).toUpperCase();
+  document.getElementById('welcomeDept').textContent=label(d);
+  // Always reset main area when switching dept
+  document.getElementById('mainArea').innerHTML=`<div class="welcome">
+    <div class="welcome-icon">${d==='lab'?'🔬':'🍳'}</div>
+    <h2>Seleziona o crea una ricetta</h2>
+    <p>Stai lavorando nel <strong>${label(d)}</strong></p></div>`;
+  renderSidebar();
+  // if on ingredients page, re-render for new dept
+  if(currentPage==='ingredients') renderIngredientsPage();
+}
+
+// ── SIDEBAR ──────────────────────────────────────────────
+function renderSidebar(){
+  const list=document.getElementById('recipeList');
+  const q=(document.getElementById('searchInput')?.value||'').toLowerCase();
+  const recipes=db.recipes[dept].filter(r=>r.name.toLowerCase().includes(q));
+  if(!recipes.length){
+    list.innerHTML=`<div class="empty-state">Nessuna ricetta nel ${label(dept).toLowerCase()}.<br>Creane una nuova!</div>`;
+    return;
+  }
+  list.innerHTML=recipes.map(r=>{
+    const hasAnimal=r.ingredients.some(i=>isAnimal(i));
+    const hasFromLab=Object.values(r.animalSources||{}).some(s=>s==='lab');
+    const ti=r.temp==='-18'?'❄️':r.temp==='+3'?'🧊':'🌡️';
+    const tl=r.temp==='-18'?'-18°C':r.temp==='+3'?'+3°C':'Amb.';
+    return `<div class="r-item ${curId===r.id?'active ':''+(dept)}" onclick="openRecipe('${r.id}')">
+      <div class="r-dot ${dept}"></div>
+      <div>
+        <div class="r-name">${r.name||'<em style="color:var(--text3)">senza nome</em>'}</div>
+        <div class="r-pills">
+          <span class="pill pill-${dept==='lab'?'lab':'cuc'}">${label(dept)}</span>
+          <span class="pill pill-temp">${ti} ${tl}</span>
+          ${r.simple?'<span class="pill" style="background:#f0f0f0;color:#999;font-size:10px">semplice</span>':''}
+          ${hasAnimal?'<span class="pill pill-animal">🐄</span>':''}
+          ${hasFromLab?'<span class="pill pill-transfer">↗ Lab</span>':''}
+        </div>
+      </div></div>`;
+  }).join('');
+}
+
+// ── RECIPE CRUD ──────────────────────────────────────────
+function newRecipe(){
+  const r={id:uid(),name:'',ingredients:[],animalSources:{},dataProd:today(),giorniScadenza:3,temp:'+3',note:''};
+  db.recipes[dept].unshift(r); saveDB();
+  curId=r.id; renderSidebar(); renderForm(r);
+}
+function newSimpleRecipe(){
+  const r={id:uid(),name:'',dataProd:today(),giorniScadenza:3,temp:'+3',note:'',simple:true};
+  db.recipes[dept].unshift(r); saveDB();
+  curId=r.id; renderSidebar(); renderSimpleForm(r);
+}
+
+function renderSimpleForm(r){
+  const isLab=dept==='lab';
+  const exp = calcExpiry(r.dataProd, r.giorniScadenza);
+  document.getElementById('mainArea').innerHTML=`
+  <div class="form-wrap">
+    <div class="form-top">
+      <div class="ftb">
+        <span class="ftb-lbl">NOME PREPARAZIONE</span>
+        <input class="ftb-inp" id="f-name" value="${r.name}" placeholder="ES. COULIS DI LAMPONI…" oninput="onNameChange(this.value)" style="text-transform:uppercase">
+        <div class="dept-badge ${dept}">${isLab?'🔬 Laboratorio':'🍳 Cucina'}</div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-sec btn-del" onclick="deleteRecipe()">🗑</button>
+        <button class="btn-sec" style="border-color:#1d4e89;color:#1d4e89" onclick="openPrintModalSimple()">🖨️ Stampa</button>
+        <button class="btn-save" onclick="saveSimpleRecipe()">💾 Salva</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span>📋</span> Informazioni Generali</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-bottom:14px">
+        <div class="field"><label>Data di Produzione</label>
+          <input type="date" id="f-dataprod" value="${r.dataProd}" onchange="collectSimple();updateExpirySimple()"></div>
+        <div class="field"><label>Giorni di Scadenza</label>
+          <input type="number" id="f-scad" value="${r.giorniScadenza}" min="1" max="730" onchange="collectSimple();updateExpirySimple()"></div>
+        <div class="field"><label>Data di Scadenza</label>
+          <div id="f-expiry-display" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 11px;font-size:13px;font-weight:600;color:var(--accent);min-height:36px;display:flex;align-items:center">
+            ${exp ? formatDate(exp) : '—'}
+          </div></div>
+        <div class="field"><label>Temperatura di Conservazione</label>
+          <select id="f-temp" onchange="collectSimple()">
+            <option value="-18" ${r.temp==='-18'?'selected':''}>❄️ -18°C — Surgelato</option>
+            <option value="+3"  ${r.temp==='+3'?'selected':''}>🧊 +3°C — Refrigerato</option>
+            <option value="amb" ${r.temp==='amb'?'selected':''}>🌡️ Temperatura Ambiente</option>
+          </select></div>
+      </div>
+      <div class="field"><label>Note</label>
+        <textarea id="f-note" placeholder="ISTRUZIONI DI CONSERVAZIONE, NOTE SPECIALI…" onchange="collectSimple()" style="text-transform:uppercase">${r.note||''}</textarea></div>
+    </div>
+  </div>`;
+}
+
+function collectSimple(){
+  const r=getR(); if(!r) return;
+  r.name=(document.getElementById('f-name')?.value||'').toUpperCase();
+  r.dataProd=document.getElementById('f-dataprod')?.value||r.dataProd;
+  r.giorniScadenza=parseInt(document.getElementById('f-scad')?.value)||r.giorniScadenza;
+  r.temp=document.getElementById('f-temp')?.value||r.temp;
+  r.note=(document.getElementById('f-note')?.value||'').toUpperCase();
+}
+
+function updateExpirySimple(){
+  const r=getR(); if(!r) return;
+  const expEl=document.getElementById('f-expiry-display'); if(!expEl) return;
+  const dataProd=document.getElementById('f-dataprod')?.value||r.dataProd;
+  const giorni=parseInt(document.getElementById('f-scad')?.value)||r.giorniScadenza;
+  const exp=calcExpiry(dataProd, giorni);
+  expEl.textContent = exp ? formatDate(exp) : '—';
+  const today_=new Date(); today_.setHours(0,0,0,0);
+  const diffDays=Math.ceil((new Date(exp)-today_)/(1000*60*60*24));
+  expEl.style.color = diffDays<=0 ? 'var(--danger)' : diffDays<=3 ? '#e67e22' : 'var(--accent)';
+}
+
+function saveSimpleRecipe(){
+  collectSimple();
+  const r=getR();
+  if(!r||!r.name.trim()){ toast('Inserisci il nome della preparazione','warn'); return; }
+  r.simple=true;
+  saveDB(); renderSidebar(); updateExpiryBadge();
+  toast(`"${r.name}" salvata!`);
+}
+
+function openPrintModalSimple(){
+  collectSimple();
+  const r=getR(); if(!r){ toast('Salva prima la ricetta','warn'); return; }
+  document.getElementById('labelPreview').innerHTML = buildSimpleLabelHTML(r);
+  document.getElementById('printOverlay').classList.add('open');
+  // override print button to use simple version
+  document.querySelector('#printOverlay .btn-save').onclick = doPrintSimple;
+}
+
+function buildSimpleLabelHTML(r){
+  const exp = calcExpiry(r.dataProd, r.giorniScadenza);
+  const tempStr = r.temp==='-18'?'❄ -18°C':r.temp==='+3'?'🧊 +3°C':'🌡 Amb.';
+  const deptStr = dept==='lab'?'LABORATORIO':'CUCINA';
+  const noteHTML = r.note ? `<hr class="lbl-divider"><div class="lbl-note">${r.note}</div>` : '';
+  return `<div class="label-120x76">
+    <div class="lbl-temp">${tempStr}</div>
+    <div class="lbl-name">${r.name||'PREPARAZIONE'}</div>
+    <div class="lbl-dates">
+      <div class="lbl-date-block">
+        <div class="lbl-date-key">Produzione</div>
+        <div class="lbl-date-val">${formatDate(r.dataProd)||'—'}</div>
+      </div>
+      <div class="lbl-date-block">
+        <div class="lbl-date-key">Scadenza</div>
+        <div class="lbl-date-val scad">${exp?formatDate(exp):'—'}</div>
+      </div>
+    </div>
+    ${noteHTML}
+    <div class="lbl-dept">${deptStr}</div>
+  </div>`;
+}
+
+function doPrintSimple(){
+  collectSimple();
+  const r=getR(); if(!r) return;
+  const copies = parseInt(document.getElementById('printCopies')?.value)||1;
+  const frame = document.getElementById('printFrame');
+  let html = '';
+  for(let i=0;i<copies;i++) html += buildSimpleLabelHTML(r);
+  frame.innerHTML = html;
+  frame.style.display = 'block';
+  setTimeout(()=>{
+    window.print();
+    frame.style.display = 'none';
+    closePrintModal();
+    toast(`Etichetta inviata alla stampante (${copies} ${copies===1?'copia':'copie'})!`);
+  }, 150);
+}
+
+function openRecipe(id){
+  curId=id;
+  const r=db.recipes[dept].find(r=>r.id===id);
+  renderSidebar();
+  if(r.simple) renderSimpleForm(r);
+  else renderForm(r);
+}
+function getR(){ return db.recipes[dept].find(r=>r.id===curId) }
+
+function collect(){
+  const r=getR(); if(!r) return;
+  r.name=document.getElementById('f-name')?.value??r.name;
+  r.dataProd=document.getElementById('f-dataprod')?.value||r.dataProd;
+  r.giorniScadenza=parseInt(document.getElementById('f-scad')?.value)||r.giorniScadenza;
+  r.temp=document.getElementById('f-temp')?.value||r.temp;
+  r.note=(document.getElementById('f-note')?.value||'').toUpperCase();
+}
+
+function updateExpiry(){
+  const r=getR(); if(!r) return;
+  const expEl=document.getElementById('f-expiry-display'); if(!expEl) return;
+  const dataProd=document.getElementById('f-dataprod')?.value||r.dataProd;
+  const giorni=parseInt(document.getElementById('f-scad')?.value)||r.giorniScadenza;
+  const exp=calcExpiry(dataProd, giorni);
+  expEl.textContent = exp ? formatDate(exp) : '—';
+  // colour: red if expiry <= today, orange if within 3 days, green otherwise
+  const today_=new Date(); today_.setHours(0,0,0,0);
+  const expDate=new Date(exp);
+  if(!exp){ expEl.style.color='var(--text3)'; return; }
+  const diffDays=Math.ceil((expDate-today_)/(1000*60*60*24));
+  expEl.style.color = diffDays<=0 ? 'var(--danger)' : diffDays<=3 ? '#e67e22' : 'var(--accent)';
+}
+
+function saveRecipe(){
+  collect();
+  const r=getR();
+  if(!r||!r.name.trim()){ toast('Inserisci il nome della ricetta','warn'); return; }
+  r.name = r.name.toUpperCase();
+  saveDB(); renderSidebar(); updateExpiryBadge();
+  toast(`"${r.name}" salvata!`);
+}
+
+function deleteRecipe(){
+  const r=getR(); if(!r) return;
+  if(!confirm(`Eliminare "${r.name||'questa ricetta'}" dal ${label(dept)}?`)) return;
+  db.recipes[dept]=db.recipes[dept].filter(x=>x.id!==curId);
+  curId=null; saveDB(); renderSidebar();
+  document.getElementById('mainArea').innerHTML=`<div class="welcome"><div class="welcome-icon">🗑️</div><h2>Ricetta eliminata</h2></div>`;
+}
+
+async function copyToOther(){
+  collect();
+  const r=getR(); if(!r) return;
+  const o=other();
+  if(db.recipes[o].find(x=>x.name===r.name)){ toast(`Esiste già nel ${label(o)}`,'warn'); return; }
+  document.getElementById('copyModalTitle').textContent=`Copia in ${label(o)}`;
+  document.getElementById('copyModalTxt').textContent=`Copia "${r.name}" nel ${label(o)}? Le due versioni saranno indipendenti. I dati DDT/lotto non vengono copiati.`;
+  const ok=await openCopyModal(); if(!ok) return;
+  const copy={...JSON.parse(JSON.stringify(r)), id:uid(), animalSources:{}};
+  db.recipes[o].unshift(copy); saveDB();
+  toast(`Ricetta copiata nel ${label(o)}!`,'info');
+}
+
+// ── RENDER FORM ──────────────────────────────────────────
+function renderForm(r){
+  if(!r.animalSources) r.animalSources={};
+  const animalIngs=r.ingredients.filter(i=>isAnimal(i));
+  const isLab=dept==='lab';
+  const o=other();
+
+  document.getElementById('mainArea').innerHTML=`
+  <div class="form-wrap">
+    <div class="form-top">
+      <div class="ftb">
+        <span class="ftb-lbl">Nome Ricetta</span>
+        <input class="ftb-inp" id="f-name" value="${r.name}" placeholder="Es. Ragù di manzo…" oninput="onNameChange(this.value)">
+        <div class="dept-badge ${dept}">${isLab?'🔬 Laboratorio':'🍳 Cucina'}</div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-sec btn-copy" onclick="copyToOther()">⎘ Copia in ${label(o)}</button>
+        <button class="btn-sec btn-del" onclick="deleteRecipe()">🗑</button>
+        <button class="btn-sec" style="border-color:#1d4e89;color:#1d4e89" onclick="openPrintModal()">🖨️ Stampa</button>
+        <button class="btn-save" onclick="saveRecipe()">💾 Salva</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span>📋</span> Informazioni Generali</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-bottom:14px">
+        <div class="field"><label>Data di Produzione</label>
+          <input type="date" id="f-dataprod" value="${r.dataProd}" onchange="collect();updateExpiry()"></div>
+        <div class="field"><label>Giorni di Scadenza</label>
+          <input type="number" id="f-scad" value="${r.giorniScadenza}" min="1" max="730" onchange="collect();updateExpiry()"></div>
+        <div class="field"><label>Data di Scadenza</label>
+          <div id="f-expiry-display" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 11px;font-size:13px;font-weight:600;color:var(--accent);min-height:36px;display:flex;align-items:center">
+            ${calcExpiry(r.dataProd,r.giorniScadenza)?formatDate(calcExpiry(r.dataProd,r.giorniScadenza)):'—'}
+          </div></div>
+        <div class="field"><label>Temperatura di Conservazione</label>
+          <select id="f-temp" onchange="collect()">
+            <option value="-18" ${r.temp==='-18'?'selected':''}>❄️ -18°C — Surgelato</option>
+            <option value="+3"  ${r.temp==='+3'?'selected':''}>🧊 +3°C — Refrigerato</option>
+            <option value="amb" ${r.temp==='amb'?'selected':''}>🌡️ Temperatura Ambiente</option>
+          </select></div>
+      </div>
+      <div class="field"><label>Note</label>
+        <textarea id="f-note" placeholder="Istruzioni di conservazione, note speciali…" onchange="collect()">${r.note||''}</textarea></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span>🧂</span> Ingredienti</div>
+      <div class="ing-tags" id="ingTags">${renderIngTags(r)}</div>
+      <div class="ing-row">
+        <input type="text" id="ingInput" placeholder="Aggiungi ingrediente…" oninput="onIngInput(this.value)" onkeydown="onIngKey(event)" autocomplete="off">
+        <button class="btn-add" onclick="addIngFromInput()" title="Aggiungi">＋</button>
+        <div class="autocomplete" id="autocomplete" style="display:none"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span>🐄</span> Prodotti di Origine Animale
+        ${animalIngs.length?`<span style="font-size:11px;color:var(--text3);font-weight:400">(${animalIngs.length})</span>`:''}
+      </div>
+      ${animalIngs.length===0
+        ?`<p class="no-animal">Nessun ingrediente di origine animale. Aggiungili dalla sezione ingredienti.</p>`
+        :`<div class="info-banner"><span>💡</span><span>${isLab
+          ?'Inserisci DDT e lotto per ogni prodotto. I dati saranno disponibili alla Cucina per gli ingredienti condivisi.'
+          :'Scegli la fonte per ogni prodotto: <strong>Cucina</strong> (dati propri) o <strong>Da Lab</strong> (dati registrati in laboratorio, si aggiornano automaticamente).'
+        }</span></div>
+        <div id="animalBlocks">${animalIngs.map(ing=>renderAnimalBlock(r,ing)).join('')}</div>`
+      }
+    </div>
+  </div>`;
+}
+
+function renderIngTags(r){
+  if(!r.ingredients.length) return `<span style="color:var(--text3);font-size:12px;font-style:italic">Nessun ingrediente aggiunto</span>`;
+  return r.ingredients.map(i=>{
+    const anim=isAnimal(i);
+    const src=(r.animalSources||{})[i];
+    const fromLab=anim&&src==='lab';
+    return `<span class="ing-tag ${fromLab?'transfer':anim?'animal':''}">
+      ${fromLab?'↗ ':anim?'🐄 ':''}${i}
+      <button onclick="removeIng('${i.replace(/'/g,"\\'")}')">×</button>
+    </span>`;
+  }).join('');
+}
+
+function renderAnimalBlock(r, ing){
+  const src=(r.animalSources||{})[ing]||'cucina';
+  const isLab=dept==='lab';
+  const labD=db.animalData.lab?.[ing]||{};
+  const cucD=db.animalData.cucina?.[ing]||{};
+  const data=isLab?labD:(src==='lab'?labD:cucD);
+  const locked=!isLab&&src==='lab';
+  const fromLab=locked;
+
+  let body='';
+  if(locked){
+    const has=labD.fornitore||labD.ddt||labD.lotto;
+    if(has){
+      body=`<div class="lab-pull">
+        <span class="lpi">🔬</span>
+        <div><strong>Dati dal Laboratorio</strong><br>
+        ${labD.fornitore?`Fornitore: <strong>${labD.fornitore}</strong><br>`:''}
+        ${labD.ddt?`DDT: <strong>${labD.ddt}</strong>`:''}${labD.dataDDT?` — Data: <strong>${labD.dataDDT}</strong>`:''}
+        ${labD.lotto?`<br>Lotto/Scad: <strong>${labD.lotto}</strong>`:''}</div>
+      </div>`;
+    } else {
+      body=`<div class="lab-pull">
+        <span class="lpi">⚠️</span>
+        <div>Il Laboratorio non ha ancora registrato i dati per <strong>${ing}</strong>. Appariranno automaticamente non appena il Lab li inserisce.</div>
+      </div>`;
+    }
+  } else {
+    const ingEsc=ing.replace(/'/g,"\\'");
+    const srcVal=isLab?'lab':src;
+    body=`<div class="g2">
+      <div class="field"><label>Fornitore</label>
+        <input type="text" value="${data.fornitore||''}" placeholder="Es. Latteria Valpadana"
+          oninput="updateAnimal('${ingEsc}','fornitore',this.value,'${srcVal}')"></div>
+      <div class="field"><label>N° DDT</label>
+        <input type="text" value="${data.ddt||''}" placeholder="Es. DDT-2024-0042"
+          oninput="updateAnimal('${ingEsc}','ddt',this.value,'${srcVal}')"></div>
+      <div class="field"><label>Data DDT</label>
+        <input type="date" value="${data.dataDDT||''}"
+          oninput="updateAnimal('${ingEsc}','dataDDT',this.value,'${srcVal}')"></div>
+      <div class="field"><label>Lotto / Scadenza prodotto</label>
+        <input type="text" value="${data.lotto||''}" placeholder="Es. L240315 / 20/06/2024"
+          oninput="updateAnimal('${ingEsc}','lotto',this.value,'${srcVal}')"></div>
+    </div>`;
+  }
+
+  return `<div class="ab ${fromLab?'from-lab':''}" id="ab-${ing.replace(/\s/g,'_')}">
+    <div class="ab-head">
+      <div class="ab-name ${fromLab?'tc':'ac'}">
+        ${fromLab?'↗':'🐄'} ${ing}
+        ${fromLab?'<span class="shared-badge">↗ Dati dal Lab</span>':''}
+      </div>
+      ${!isLab?`<div class="src-toggle">
+        <button class="src-btn ${src==='cucina'?'on-cuc':''}" onclick="setAnimalSrc('${ing.replace(/'/g,"\\'")}','cucina')">🍳 Cucina</button>
+        <button class="src-btn ${src==='lab'?'on-lab':''}" onclick="setAnimalSrc('${ing.replace(/'/g,"\\'")}','lab')">🔬 Da Lab</button>
+      </div>`:''}
+    </div>
+    ${body}
+  </div>`;
+}
+
+// ── ANIMAL DATA ──────────────────────────────────────────
+function updateAnimal(ing, field, val, src){
+  const d=dept==='lab'?'lab':(src==='lab'?'lab':'cucina');
+  if(!db.animalData[d]) db.animalData[d]={};
+  if(!db.animalData[d][ing]) db.animalData[d][ing]={};
+  db.animalData[d][ing][field]=val;
+  collect(); saveDB();
+}
+
+function setAnimalSrc(ing, src){
+  const r=getR(); if(!r) return;
+  if(!r.animalSources) r.animalSources={};
+  r.animalSources[ing]=src;
+  collect(); saveDB(); renderForm(r); renderSidebar();
+}
+
+// ── INGREDIENTS ──────────────────────────────────────────
+function onNameChange(v){ const r=getR(); if(r){ r.name=v.toUpperCase(); renderSidebar(); } }
+
+function onIngInput(val){
+  val = val.toUpperCase();
+  document.getElementById('ingInput').value = val;
+  const ac=document.getElementById('autocomplete');
+  if(!val.trim()){ ac.style.display='none'; return; }
+  const q=val.toLowerCase();
+  const matches=db.ingredients.filter(i=>i.name.toLowerCase().includes(q));
+  const exact=db.ingredients.find(i=>i.name.toLowerCase()===q);
+  let html=matches.map(i=>`<div class="ac-item" onmousedown="selectIng('${i.name.replace(/'/g,"\\'")}')">
+    <span>${i.isAnimal?'🐄 ':''}${i.name}</span>
+    ${i.isAnimal?'<span class="ac-badge ac-animal">Animale</span>':''}
+  </div>`).join('');
+  if(!exact) html+=`<div class="ac-item" onmousedown="promptNewIng('${val.replace(/'/g,"\\'")}')">
+    <span>+ Aggiungi "<strong>${val}</strong>"</span>
+    <span class="ac-badge ac-new">Nuovo</span>
+  </div>`;
+  if(!html){ ac.style.display='none'; return; }
+  ac.innerHTML=html; ac.style.display='block';
+}
+
+function onIngKey(e){
+  if(e.key==='Enter') addIngFromInput();
+  if(e.key==='Escape') document.getElementById('autocomplete').style.display='none';
+}
+
+function addIngFromInput(){
+  const val=document.getElementById('ingInput')?.value?.trim().toUpperCase(); if(!val) return;
+  const ex=db.ingredients.find(i=>i.name.toUpperCase()===val);
+  if(ex) selectIng(ex.name); else promptNewIng(val);
+}
+
+async function promptNewIng(name){
+  // All ingredients added via recipe are treated as animal origin.
+  // Non-animal items can be added freely from the Ingredienti page.
+  document.getElementById('animalModalTxt').textContent=`"${name}" è un prodotto di origine animale? Se non lo è, clicca "Non animale".`;
+  const isAnim=await openAnimalModal();
+  db.ingredients.push({name, isAnimal:isAnim}); saveDB();
+  selectIng(name);
+}
+
+function selectIng(name){
+  name = name.toUpperCase();
+  collect();
+  const r=getR(); if(!r) return;
+  if(!r.ingredients.includes(name)) r.ingredients.push(name);
+  document.getElementById('ingInput').value='';
+  document.getElementById('autocomplete').style.display='none';
+  saveDB(); renderForm(r); renderSidebar();
+}
+
+function removeIng(name){
+  collect();
+  const r=getR(); if(!r) return;
+  r.ingredients=r.ingredients.filter(i=>i!==name);
+  if(r.animalSources) delete r.animalSources[name];
+  saveDB(); renderForm(r); renderSidebar();
+}
+
+// ── MODALS ───────────────────────────────────────────────
+function openAnimalModal(){ return new Promise(res=>{ resolveAnimal=res; document.getElementById('animalOverlay').classList.add('open'); }); }
+function closeAnimalModal(v){ document.getElementById('animalOverlay').classList.remove('open'); if(resolveAnimal){ resolveAnimal(v); resolveAnimal=null; } }
+function openCopyModal(){ return new Promise(res=>{ resolveCopy=res; document.getElementById('copyOverlay').classList.add('open'); }); }
+function closeCopyModal(v){ document.getElementById('copyOverlay').classList.remove('open'); if(resolveCopy){ resolveCopy(v); resolveCopy=null; } }
+
+document.addEventListener('mousedown', e=>{
+  if(!e.target.closest('.ing-row')){
+    const ac=document.getElementById('autocomplete'); if(ac) ac.style.display='none';
+  }
+});
+
+// ── PAGE SWITCHING ────────────────────────────────────────
+let currentPage = 'recipes';
+
+function showPage(page){
+  currentPage = page;
+  document.getElementById('pageRecipes').style.display     = page==='recipes'     ? '' : 'none';
+  document.getElementById('pageIngredients').style.display = page==='ingredients' ? '' : 'none';
+  document.getElementById('pageExpiry').style.display      = page==='expiry'      ? '' : 'none';
+  document.getElementById('btnPageRecipes').className     = 'nav-page-btn'+(page==='recipes'    ?' page-on':'');
+  document.getElementById('btnPageIngredients').className = 'nav-page-btn'+(page==='ingredients'?' page-on':'');
+  document.getElementById('btnPageExpiry').className      = 'nav-page-btn'+(page==='expiry'     ?' page-on':'');
+  if(page==='ingredients') renderIngredientsPage();
+  if(page==='expiry')      renderExpiryPage();
+}
+
+// ── INGREDIENTS PAGE ──────────────────────────────────────
+function renderIngredientsPage(){
+  // Update header badge to reflect current dept
+  const lbl = document.getElementById('ingPageDeptLabel');
+  if(lbl){
+    lbl.textContent = dept==='lab' ? '🔬 Laboratorio' : '🍳 Cucina';
+    lbl.style.background = dept==='lab' ? 'var(--lab-lt)' : 'var(--cuc-lt)';
+    lbl.style.color      = dept==='lab' ? 'var(--lab)'    : 'var(--cuc)';
+    lbl.style.border     = '1px solid '+(dept==='lab' ? 'var(--lab-bd)' : 'var(--cuc-bd)');
+  }
+  // Update add button colour
+  const addBtn = document.getElementById('btnAddIng');
+  if(addBtn) addBtn.style.background = dept==='lab' ? 'var(--lab)' : 'var(--cuc)';
+
+  renderIngPageGrid();
+}
+
+function renderIngPageGrid(){
+  const grid = document.getElementById('ingPageGrid');
+  const q = (document.getElementById('ingSearch')?.value||'').toLowerCase().trim();
+  let animalIngs = db.ingredients.filter(i=>i.isAnimal);
+  if(q) animalIngs = animalIngs.filter(i=>i.name.toLowerCase().includes(q));
+  if(!animalIngs.length){
+    const msg = q
+      ? `Nessun prodotto trovato per "<strong>${q}</strong>"`
+      : 'Nessun prodotto di origine animale nel database. Aggiungine uno sopra.';
+    grid.innerHTML=`<div class="no-animal-page" style="grid-column:1/-1">${msg}</div>`;
+    return;
+  }
+  grid.innerHTML = animalIngs.map(ing => renderIngCard(ing.name)).join('');
+}
+
+function renderIngCard(name){
+  const d   = db.animalData[dept]?.[name] || {};
+  const n   = name.replace(/'/g,"\'");
+  const isLab = dept==='lab';
+  const updated = d._updated
+    ? `<div class="last-update">Ultimo aggiornamento: ${d._updated}</div>` : '';
+
+  // show where else this ingredient appears
+  const usedInLab = db.recipes.lab.some(r=>r.ingredients.includes(name));
+  const usedInCuc = db.recipes.cucina.some(r=>r.ingredients.includes(name));
+
+  return `<div class="ing-card">
+    <div class="ing-card-head" style="background:${isLab?'var(--lab-lt)':'var(--cuc-lt)'}">
+      <div class="ing-card-name" style="color:${isLab?'var(--lab)':'var(--cuc)'}">🐄 ${name}</div>
+      <div class="ing-card-depts">
+        ${usedInLab?'<span class="pill pill-lab">Lab</span>':''}
+        ${usedInCuc?'<span class="pill pill-cuc">Cucina</span>':''}
+        ${!usedInLab&&!usedInCuc?'<span class="pill" style="background:var(--bg);color:var(--text3)">Non usato</span>':''}
+      </div>
+    </div>
+    <div class="ing-card-body">
+      <div class="mini-grid">
+        <div class="mini-field"><label>Fornitore</label>
+          <input id="ing-forn-${name}" type="text" value="${d.fornitore||''}" placeholder="Es. Latteria Valpadana"></div>
+        <div class="mini-field"><label>N° DDT</label>
+          <input id="ing-ddt-${name}" type="text" value="${d.ddt||''}" placeholder="DDT-2024-…"></div>
+        <div class="mini-field"><label>Data DDT</label>
+          <input id="ing-data-${name}" type="date" value="${d.dataDDT||''}"></div>
+        <div class="mini-field"><label>Lotto / Scadenza</label>
+          <input id="ing-lotto-${name}" type="text" value="${d.lotto||''}" placeholder="L240315…"></div>
+      </div>
+      <button class="save-ing-btn" style="background:${isLab?'var(--lab)':'var(--cuc)'}"
+        onclick="saveIngCard('${n}')">
+        💾 Salva — ${isLab?'Laboratorio':'Cucina'}
+      </button>
+      ${updated}
+      <button onclick="removeIngredientFromDB('${n}')"
+        style="margin-top:6px;width:100%;background:none;border:1px solid var(--border);border-radius:7px;padding:5px;font-size:11px;color:var(--text3);cursor:pointer;font-family:'Outfit',sans-serif;transition:all .2s"
+        onmouseover="this.style.color='var(--danger)';this.style.borderColor='var(--danger)'"
+        onmouseout="this.style.color='var(--text3)';this.style.borderColor='var(--border)'">
+        🗑 Rimuovi dal database
+      </button>
+    </div>
+  </div>`;
+}
+
+function saveIngCard(name){
+  if(!db.animalData[dept]) db.animalData[dept]={};
+  if(!db.animalData[dept][name]) db.animalData[dept][name]={};
+  const d = db.animalData[dept][name];
+  d.fornitore = (document.getElementById(`ing-forn-${name}`)?.value||'').toUpperCase();
+  d.ddt       = (document.getElementById(`ing-ddt-${name}`)?.value||'').toUpperCase();
+  d.dataDDT   = document.getElementById(`ing-data-${name}`)?.value||'';
+  d.lotto     = (document.getElementById(`ing-lotto-${name}`)?.value||'').toUpperCase();
+  d._updated  = new Date().toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  saveDB();
+  toast(`"${name}" aggiornato per ${dept==='lab'?'il Laboratorio':'la Cucina'}!`);
+  // update timestamp in place
+  const card = document.getElementById(`ing-forn-${name}`)?.closest('.ing-card-body');
+  if(card){
+    let ts = card.querySelector('.last-update');
+    if(!ts){ ts=document.createElement('div'); ts.className='last-update'; card.insertBefore(ts, card.querySelector('button[onclick^="removeIng"]')); }
+    ts.textContent=`Ultimo aggiornamento: ${d._updated}`;
+  }
+}
+
+function addNewIngredientFromPage(){
+  const nameEl = document.getElementById('newIngName');
+  const name = nameEl?.value?.trim().toUpperCase();
+  if(!name){ toast('Inserisci il nome del prodotto','warn'); return; }
+  if(db.ingredients.find(i=>i.name.toUpperCase()===name)){
+    toast(`"${name}" è già nel database`,'warn'); return;
+  }
+  db.ingredients.push({name, isAnimal:true});
+  saveDB();
+  nameEl.value='';
+  toast(`"${name}" aggiunto!`);
+  renderIngredientsPage();
+}
+
+function removeIngredientFromDB(name){
+  if(!confirm(`Rimuovere "${name}" dal database?\nAttenzione: verrà rimosso da tutte le ricette.`)) return;
+  db.ingredients = db.ingredients.filter(i=>i.name!==name);
+  // remove from all recipes too
+  ['lab','cucina'].forEach(d=>{
+    db.recipes[d].forEach(r=>{
+      r.ingredients = r.ingredients.filter(i=>i!==name);
+      if(r.animalSources) delete r.animalSources[name];
+    });
+  });
+  saveDB();
+  toast(`"${name}" rimosso`,'warn');
+  renderIngredientsPage();
+}
+
+// ── EXPIRY PAGE ──────────────────────────────────────────
+function getExpiryStatus(dataProd, giorni){
+  if(!dataProd||!giorni) return null;
+  const exp = calcExpiry(dataProd, giorni);
+  if(!exp) return null;
+  const today_ = new Date(); today_.setHours(0,0,0,0);
+  const expDate = new Date(exp);
+  const diff = Math.ceil((expDate - today_)/(1000*60*60*24));
+  return { exp, diff };
+}
+
+function renderExpiryPage(){
+  const el = document.getElementById('expiryPageContent'); if(!el) return;
+
+  // Collect only expired recipes from both depts (diff < 0 = past expiry date)
+  const scadute = [];
+  ['lab','cucina'].forEach(d=>{
+    db.recipes[d].forEach(r=>{
+      const st = getExpiryStatus(r.dataProd, r.giorniScadenza);
+      if(!st || st.diff >= 0) return;
+      scadute.push({ r, d, ...st });
+    });
+  });
+
+  // Update nav badge
+  const badge = document.getElementById('expiryNavBadge');
+  if(badge){
+    if(scadute.length){ badge.style.display='inline'; badge.textContent=scadute.length; }
+    else badge.style.display='none';
+  }
+
+  if(!scadute.length){
+    el.innerHTML=`<div class="exp-empty">
+      <div class="big">✅</div>
+      <h3>Nessuna preparazione scaduta</h3>
+      <p>Tutte le ricette sono entro la data di scadenza.</p>
+    </div>`;
+    return;
+  }
+
+  // Sort: most overdue first
+  scadute.sort((a,b)=>a.diff-b.diff);
+
+  const rows = scadute.map(({r,d,exp,diff})=>{
+    const gg = Math.abs(diff);
+    const dLabel = d==='lab'
+      ? '<span class="pill pill-lab" style="font-size:11px">Lab</span>'
+      : '<span class="pill pill-cuc" style="font-size:11px">Cucina</span>';
+    const tempIco = r.temp==='-18'?'❄️ -18°C':r.temp==='+3'?'🧊 +3°C':'🌡️ Amb.';
+    return `<tr class="exp-row-expired">
+      <td><button class="exp-link" onclick="goToRecipe('${r.id}','${d}')">${r.name||'<em>senza nome</em>'}</button></td>
+      <td>${dLabel}</td>
+      <td>${formatDate(r.dataProd)}</td>
+      <td style="font-weight:700;color:var(--danger)">${formatDate(exp)}</td>
+      <td><span class="exp-badge scaduto">⛔ ${gg === 1 ? '1 giorno fa' : gg+' giorni fa'}</span></td>
+      <td style="font-size:12px;color:var(--text2)">${tempIco}</td>
+      <td><button class="exp-link" onclick="goToRecipe('${r.id}','${d}')" style="font-size:11px;color:var(--text3)">Vai →</button></td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `<table class="exp-table">
+    <thead><tr>
+      <th>Preparazione</th><th>Reparto</th><th>Produzione</th>
+      <th>Scadenza</th><th>Giorni scaduta</th><th>Temp.</th><th></th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+function goToRecipe(id, d){
+  // Switch dept if needed, then open recipe
+  if(d!==dept) switchDept(d);
+  showPage('recipes');
+  curId=id;
+  renderSidebar();
+  const r=db.recipes[d].find(r=>r.id===id);
+  if(r) renderForm(r);
+}
+
+function updateExpiryBadge(){
+  const all=[];
+  ['lab','cucina'].forEach(d=>{
+    db.recipes[d].forEach(r=>{
+      const st=getExpiryStatus(r.dataProd,r.giorniScadenza);
+      if(st&&st.diff<=0) all.push(r);
+    });
+  });
+  const badge=document.getElementById('expiryNavBadge');
+  if(!badge) return;
+  if(all.length>0){ badge.style.display='inline'; badge.textContent=all.length; }
+  else badge.style.display='none';
+}
+
+// ── PRINT ────────────────────────────────────────────────
+function buildLabelHTML(r){
+  const exp = calcExpiry(r.dataProd, r.giorniScadenza);
+  const tempStr = r.temp==='-18'?'❄ -18°C':r.temp==='+3'?'🧊 +3°C':'🌡 Amb.';
+  const deptStr = dept==='lab'?'LABORATORIO':'CUCINA';
+
+  // Animal products with data
+  const animalIngs = r.ingredients.filter(i=>isAnimal(i));
+  let animalHTML = '';
+  if(animalIngs.length){
+    animalHTML = '<hr class="lbl-divider">';
+    animalIngs.forEach(ing=>{
+      const src = (r.animalSources||{})[ing] || dept;
+      const d = db.animalData[src]?.[ing] || {};
+      if(!d.fornitore && !d.ddt && !d.lotto) return;
+      animalHTML += `<div class="lbl-animal-block">
+        <div class="lbl-animal-title">🐄 ${ing}</div>
+        <div class="lbl-animal-row">
+          ${d.fornitore?`FORN: ${d.fornitore}  `:'' }${d.ddt?`DDT: ${d.ddt}`:'' }${d.dataDDT?`  (${formatDate(d.dataDDT)})`:'' }
+          ${d.lotto?`<br>LOTTO/SCAD: ${d.lotto}`:''}
+        </div>
+      </div>`;
+    });
+  }
+
+  const noteHTML = r.note ? `<hr class="lbl-divider"><div class="lbl-note">${r.note}</div>` : '';
+
+  return `<div class="label-120x76">
+    <div class="lbl-temp">${tempStr}</div>
+    <div class="lbl-name">${r.name||'PREPARAZIONE'}</div>
+    <div class="lbl-dates">
+      <div class="lbl-date-block">
+        <div class="lbl-date-key">Produzione</div>
+        <div class="lbl-date-val">${formatDate(r.dataProd)||'—'}</div>
+      </div>
+      <div class="lbl-date-block">
+        <div class="lbl-date-key">Scadenza</div>
+        <div class="lbl-date-val scad">${exp?formatDate(exp):'—'}</div>
+      </div>
+    </div>
+    ${animalHTML}
+    ${noteHTML}
+    <div class="lbl-dept">${deptStr}</div>
+  </div>`;
+}
+
+function openPrintModal(){
+  collect();
+  const r=getR(); if(!r){ toast('Salva prima la ricetta','warn'); return; }
+  document.getElementById('labelPreview').innerHTML = buildLabelHTML(r);
+  document.getElementById('printOverlay').classList.add('open');
+}
+
+function closePrintModal(){
+  document.getElementById('printOverlay').classList.remove('open');
+}
+
+function doPrint(){
+  collect();
+  const r=getR(); if(!r) return;
+  const copies = parseInt(document.getElementById('printCopies')?.value)||1;
+  const frame = document.getElementById('printFrame');
+  let html = '';
+  for(let i=0;i<copies;i++) html += buildLabelHTML(r);
+  frame.innerHTML = html;
+  frame.style.display = 'block';
+  setTimeout(()=>{
+    window.print();
+    frame.style.display = 'none';
+    closePrintModal();
+    toast(`Etichetta inviata alla stampante (${copies} ${copies===1?'copia':'copie'})!`);
+  }, 150);
+}
+
+// close print modal on overlay click
+document.addEventListener('click', e=>{
+  if(e.target.id==='printOverlay') closePrintModal();
+});
+
+// ── INIT ─────────────────────────────────────────────────
+initDB();
+</script>
+</body>
+</html>

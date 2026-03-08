@@ -436,12 +436,13 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-
   </div>
 </div>
 
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script>
+<script type="module">
 // ═══════════════════════════════════════════════════════
-// FIREBASE SETUP (compat SDK — funziona da file://)
+// FIREBASE SETUP — modular SDK (funziona su GitHub Pages)
 // ═══════════════════════════════════════════════════════
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
 const firebaseConfig = {
   apiKey: "AIzaSyD7vZlwcg1EgZhBucjz7WoiSMTIs6ouXRQ",
   authDomain: "ricettecontraste.firebaseapp.com",
@@ -451,9 +452,9 @@ const firebaseConfig = {
   appId: "1:861699797515:web:8fc4e58e527609cc5d8d0e"
 };
 
-firebase.initializeApp(firebaseConfig);
-const fireDB = firebase.firestore();
-const DB_DOC = fireDB.collection('ristorante').doc('database');
+const fireApp = initializeApp(firebaseConfig);
+const fireDB  = getFirestore(fireApp);
+const DB_DOC  = doc(fireDB, 'ristorante', 'database');
 
 // ── DATABASE ──────────────────────────────────────────────
 const DEFAULT_DB = {
@@ -484,7 +485,7 @@ async function saveDB(){
   _saving = true;
   setSyncStatus('💾 Salvataggio…','#e67e22');
   try{
-    await DB_DOC.set({ data: JSON.stringify(db) });
+    await setDoc(DB_DOC, { data: JSON.stringify(db) });
     setSyncStatus('✓ Sincronizzato','#2d6a4f');
   } catch(e){
     console.error(e);
@@ -495,7 +496,7 @@ async function saveDB(){
 
 // Real-time listener: when another PC saves, this PC updates automatically
 function startRealtimeSync(){
-  DB_DOC.onSnapshot((snap)=>{
+  onSnapshot(DB_DOC, (snap)=>{
     if(!snap || !snap.exists()) return;
     try{
       const remote = JSON.parse(snap.data().data);
@@ -551,12 +552,12 @@ function normalizeDB(d){
 async function initDB(){
   setSyncStatus('⟳ Connessione…','#e67e22');
   try{
-    const snap = await DB_DOC.get();
+    const snap = await getDoc(DB_DOC);
     if(snap && snap.exists()){
       db = normalizeDB(JSON.parse(snap.data().data));
     } else {
       // First time: write defaults to Firebase
-      await DB_DOC.set({ data: JSON.stringify(db) });
+      await setDoc(DB_DOC, { data: JSON.stringify(db) });
     }
     setSyncStatus('✓ Sincronizzato','#2d6a4f');
   } catch(e){

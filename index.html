@@ -393,8 +393,12 @@ body.dept-cucina .btn-new{background:var(--cuc)}
 
     <!-- Tab: Inserisci DDT (batch) -->
     <div id="tabPanelDDT" class="add-ing-card" style="display:none">
-      <p style="font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.6">Inserisci i dati del DDT una volta sola, seleziona i prodotti coinvolti e clicca <strong>Applica DDT</strong>. I dati verranno scritti su tutti i prodotti selezionati.</p>
-      <div class="g2" style="margin-bottom:16px">
+      <p style="font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.6">
+        Inserisci i dati comuni del DDT (fornitore, numero, data), poi aggiungi ogni prodotto con il suo lotto specifico. Clicca <strong>Salva DDT</strong> per applicare tutto in una volta.
+      </p>
+
+      <!-- Dati comuni DDT -->
+      <div class="g2" style="margin-bottom:20px">
         <div class="field">
           <label>Fornitore</label>
           <input type="text" id="ddt-fornitore" placeholder="Es. Latteria Valpadana">
@@ -403,20 +407,33 @@ body.dept-cucina .btn-new{background:var(--cuc)}
           <label>N° DDT</label>
           <input type="text" id="ddt-numero" placeholder="Es. DDT-2024-0042">
         </div>
-        <div class="field">
+        <div class="field" style="grid-column:1/-1">
           <label>Data DDT</label>
-          <input type="date" id="ddt-data">
-        </div>
-        <div class="field">
-          <label>Lotto / Scadenza Prodotto</label>
-          <input type="text" id="ddt-lotto" placeholder="Es. L240315 / 20/06/2024">
+          <input type="date" id="ddt-data" style="max-width:200px">
         </div>
       </div>
-      <div style="margin-bottom:14px">
-        <label style="font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--text3);font-weight:500;display:block;margin-bottom:10px">Seleziona i prodotti da aggiornare</label>
-        <div id="ddt-product-list" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+
+      <!-- Lista prodotti del DDT -->
+      <div style="margin-bottom:16px">
+        <label style="font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--text3);font-weight:600;display:block;margin-bottom:10px">Prodotti inclusi nel DDT</label>
+        <div id="ddt-items-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:12px"></div>
+
+        <!-- Aggiungi riga prodotto -->
+        <div style="display:flex;gap:8px;align-items:center">
+          <div style="position:relative;flex:1">
+            <input type="text" id="ddt-new-ing" placeholder="Nome prodotto (es. PANNA FRESCA)" 
+              style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-family:Outfit,sans-serif;font-size:13px;outline:none;text-transform:uppercase"
+              oninput="onDDTIngInput(this.value)" onkeydown="if(event.key==='Enter')addDDTItem()" autocomplete="off">
+            <div id="ddt-autocomplete" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--accent-bd);border-radius:9px;z-index:100;overflow:hidden;margin-top:4px;box-shadow:var(--sh2)"></div>
+          </div>
+          <input type="text" id="ddt-new-lotto" placeholder="Lotto / Scadenza prodotto"
+            style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-family:Outfit,sans-serif;font-size:13px;outline:none;text-transform:uppercase"
+            onkeydown="if(event.key==='Enter')addDDTItem()">
+          <button onclick="addDDTItem()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-family:Outfit,sans-serif;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap">+ Aggiungi</button>
+        </div>
       </div>
-      <button onclick="applyBatchDDT()" style="background:var(--lab);color:#fff;border:none;border-radius:7px;padding:10px 24px;font-family:Outfit,sans-serif;font-weight:700;font-size:13px;cursor:pointer;letter-spacing:.3px">Applica DDT ai prodotti selezionati</button>
+
+      <button onclick="applyBatchDDT()" style="background:var(--lab);color:#fff;border:none;border-radius:7px;padding:11px 28px;font-family:Outfit,sans-serif;font-weight:700;font-size:13px;cursor:pointer;letter-spacing:.3px">Salva DDT</button>
     </div>
 
     <div id="ingPageGrid" class="ing-grid"></div>
@@ -1303,6 +1320,8 @@ function saveIngCard(name){
 }
 
 // ── DDT BATCH & TAB SWITCHING ─────────────────────────────
+let ddtItems = []; // [{name, lotto, isNew}]
+
 function switchIngTab(tab){
   const isIng = tab === 'ing';
   document.getElementById('tabPanelIng').style.display = isIng ? '' : 'none';
@@ -1314,59 +1333,100 @@ function switchIngTab(tab){
   btnIng.style.color = isIng ? '#fff' : 'var(--text3)';
   btnDDT.style.background = isIng ? 'transparent' : activeColor;
   btnDDT.style.color = isIng ? 'var(--text3)' : '#fff';
-  if(!isIng) populateDDTProductList();
+  if(!isIng){ ddtItems=[]; renderDDTItems(); }
 }
 
-function populateDDTProductList(){
-  const container = document.getElementById('ddt-product-list');
+function onDDTIngInput(val){
+  const ac = document.getElementById('ddt-autocomplete');
+  if(!ac) return;
+  const v = val.trim().toUpperCase();
+  if(!v){ ac.style.display='none'; return; }
+  const added = ddtItems.map(i=>i.name);
+  const matches = db.ingredients.filter(i=>i.isAnimal && i.name.includes(v) && !added.includes(i.name));
+  const isExact = db.ingredients.some(i=>i.name===v);
+  let html = matches.map(i=>`<div class="ac-item" onmousedown="selectDDTIng('${i.name.replace(/'/g,"\\'")}')"><span>${i.name}</span><span class="ac-badge ac-animal">nel DB</span></div>`).join('');
+  if(!isExact) html += `<div class="ac-item" onmousedown="selectDDTIng('${v.replace(/'/g,"\\'")}',true)"><span>+ Aggiungi "${v}"</span><span class="ac-badge ac-new">nuovo</span></div>`;
+  if(!html){ ac.style.display='none'; return; }
+  ac.innerHTML = html;
+  ac.style.display = 'block';
+}
+
+function selectDDTIng(name, isNew=false){
+  const el = document.getElementById('ddt-new-ing');
+  el.value = name;
+  document.getElementById('ddt-autocomplete').style.display = 'none';
+  document.getElementById('ddt-new-lotto').focus();
+}
+
+function addDDTItem(){
+  const nameEl = document.getElementById('ddt-new-ing');
+  const lottoEl = document.getElementById('ddt-new-lotto');
+  const name = (nameEl.value||'').trim().toUpperCase();
+  const lotto = (lottoEl.value||'').toUpperCase();
+  if(!name){ toast('Inserisci il nome del prodotto','warn'); return; }
+  if(ddtItems.find(i=>i.name===name)){ toast('Prodotto già aggiunto','warn'); return; }
+  const isNew = !db.ingredients.find(i=>i.name===name);
+  ddtItems.push({name, lotto, isNew});
+  nameEl.value=''; lottoEl.value='';
+  document.getElementById('ddt-autocomplete').style.display='none';
+  renderDDTItems();
+  nameEl.focus();
+}
+
+function removeDDTItem(name){
+  ddtItems = ddtItems.filter(i=>i.name!==name);
+  renderDDTItems();
+}
+
+function renderDDTItems(){
+  const container = document.getElementById('ddt-items-list');
   if(!container) return;
-  const animals = db.ingredients.filter(i=>i.isAnimal);
-  if(!animals.length){
-    container.innerHTML = '<span style="font-size:12px;color:var(--text3)">Nessun prodotto di origine animale nel database.</span>';
+  if(!ddtItems.length){
+    container.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:8px 0;font-style:italic">Nessun prodotto aggiunto. Usa il campo sotto per aggiungere.</div>';
     return;
   }
-  container.innerHTML = animals.map(i=>`
-    <label style="display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border:1px solid var(--border);border-radius:20px;cursor:pointer;font-size:12px;font-weight:500;background:var(--surface);transition:all .15s;user-select:none"
-      onmouseover="this.style.borderColor='var(--lab-bd)'" onmouseout="this.style.borderColor=this.querySelector('input').checked?'var(--lab)':'var(--border)'">
-      <input type="checkbox" value="${i.name}" style="accent-color:var(--lab);width:13px;height:13px" onchange="this.closest('label').style.background=this.checked?'var(--lab-lt)':'var(--surface)';this.closest('label').style.borderColor=this.checked?'var(--lab)':'var(--border)'">
-      ${i.name}
-    </label>`).join('');
+  container.innerHTML = ddtItems.map((item,idx)=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px">
+      <span style="font-weight:700;font-size:13px;flex:1;min-width:120px">${item.name}${item.isNew?'<span style="margin-left:8px;font-size:10px;background:var(--accent-lt);color:var(--accent);padding:2px 7px;border-radius:20px;font-weight:600;vertical-align:middle">NUOVO</span>':''}</span>
+      <input type="text" value="${item.lotto}" placeholder="Lotto / Scadenza prodotto"
+        style="flex:1.5;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:7px 10px;font-family:Outfit,sans-serif;font-size:12px;outline:none;text-transform:uppercase"
+        oninput="ddtItems[${idx}].lotto=this.value.toUpperCase()">
+      <button onclick="removeDDTItem('${item.name.replace(/'/g,"\\'")}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:20px;line-height:1;padding:0 4px;transition:color .15s" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text3)'">&times;</button>
+    </div>`).join('');
 }
 
 function applyBatchDDT(){
   const fornitore = (document.getElementById('ddt-fornitore').value||'').toUpperCase();
   const ddt       = (document.getElementById('ddt-numero').value||'').toUpperCase();
   const dataDDT   = document.getElementById('ddt-data').value||'';
-  const lotto     = (document.getElementById('ddt-lotto').value||'').toUpperCase();
 
-  if(!ddt && !fornitore){ toast('Inserisci almeno il numero DDT o il fornitore', 'warn'); return; }
-
-  const selected = [...document.querySelectorAll('#ddt-product-list input[type=checkbox]:checked')]
-    .map(cb => cb.value);
-
-  if(!selected.length){ toast('Seleziona almeno un prodotto', 'warn'); return; }
+  if(!ddt && !fornitore){ toast('Inserisci almeno il numero DDT o il fornitore','warn'); return; }
+  if(!ddtItems.length){ toast('Aggiungi almeno un prodotto','warn'); return; }
 
   if(!db.animalData[dept]) db.animalData[dept]={};
-  selected.forEach(ing=>{
-    if(!db.animalData[dept][ing]) db.animalData[dept][ing]={};
-    const entry = db.animalData[dept][ing];
+
+  ddtItems.forEach(item=>{
+    if(item.isNew && !db.ingredients.find(i=>i.name===item.name)){
+      db.ingredients.push({name:item.name, isAnimal:true});
+    }
+    if(!db.animalData[dept][item.name]) db.animalData[dept][item.name]={};
+    const entry = db.animalData[dept][item.name];
     if(fornitore) entry.fornitore = fornitore;
     if(ddt)       entry.ddt       = ddt;
     if(dataDDT)   entry.dataDDT   = dataDDT;
-    if(lotto)     entry.lotto     = lotto;
+    if(item.lotto) entry.lotto    = item.lotto;
     entry._updated = new Date().toLocaleString('it-IT');
   });
 
   saveDB();
-  toast(`DDT applicato a ${selected.length} prodott${selected.length===1?'o':'i'}!`);
-
-  // Reset form
-  ['ddt-fornitore','ddt-numero','ddt-data','ddt-lotto'].forEach(id=>{
-    document.getElementById(id).value='';
-  });
-  populateDDTProductList();
+  toast(`DDT salvato per ${ddtItems.length} prodott${ddtItems.length===1?'o':'i'}!`);
+  ['ddt-fornitore','ddt-numero','ddt-data'].forEach(id=>{ document.getElementById(id).value=''; });
+  ddtItems=[];
+  renderDDTItems();
   renderIngPageGrid();
 }
+
+function populateDDTProductList(){ /* legacy */ }
 
 function addNewIngredientFromPage(){
   const nameEl = document.getElementById('newIngName');
@@ -1620,6 +1680,11 @@ window.addNewIngredientFromPage = addNewIngredientFromPage;
 window.switchIngTab = switchIngTab;
 window.applyBatchDDT = applyBatchDDT;
 window.populateDDTProductList = populateDDTProductList;
+window.addDDTItem = addDDTItem;
+window.removeDDTItem = removeDDTItem;
+window.onDDTIngInput = onDDTIngInput;
+window.selectDDTIng = selectDDTIng;
+window.renderDDTItems = renderDDTItems;
 window.deleteExpiredRecipe = deleteExpiredRecipe;
 window.removeIngredientFromDB = removeIngredientFromDB;
 window.renderExpiryPage = renderExpiryPage;

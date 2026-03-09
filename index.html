@@ -1320,7 +1320,7 @@ function saveIngCard(name){
 }
 
 // ── DDT BATCH & TAB SWITCHING ─────────────────────────────
-let ddtItems = []; // [{name, lotto, isNew}]
+window.ddtItems = []; // [{name, lotto, isNew}] — global so all callers share same array
 
 function switchIngTab(tab){
   const isIng = tab === 'ing';
@@ -1333,7 +1333,7 @@ function switchIngTab(tab){
   btnIng.style.color = isIng ? '#fff' : 'var(--text3)';
   btnDDT.style.background = isIng ? 'transparent' : activeColor;
   btnDDT.style.color = isIng ? 'var(--text3)' : '#fff';
-  if(!isIng){ ddtItems=[]; renderDDTItems(); }
+  if(!isIng){ window.ddtItems=[]; renderDDTItems(); }
 }
 
 function onDDTIngInput(val){
@@ -1341,7 +1341,7 @@ function onDDTIngInput(val){
   if(!ac) return;
   const v = val.trim().toUpperCase();
   if(!v){ ac.style.display='none'; return; }
-  const added = ddtItems.map(i=>i.name);
+  const added = window.ddtItems.map(i=>i.name);
   const matches = db.ingredients.filter(i=>i.isAnimal && i.name.includes(v) && !added.includes(i.name));
   const isExact = db.ingredients.some(i=>i.name===v);
   let html = matches.map(i=>`<div class="ac-item" onmousedown="selectDDTIng('${i.name.replace(/'/g,"\\'")}')"><span>${i.name}</span><span class="ac-badge ac-animal">nel DB</span></div>`).join('');
@@ -1364,9 +1364,9 @@ function addDDTItem(){
   const name = (nameEl.value||'').trim().toUpperCase();
   const lotto = (lottoEl.value||'').toUpperCase();
   if(!name){ toast('Inserisci il nome del prodotto','warn'); return; }
-  if(ddtItems.find(i=>i.name===name)){ toast('Prodotto già aggiunto','warn'); return; }
+  if(window.ddtItems.find(i=>i.name===name)){ toast('Prodotto già aggiunto','warn'); return; }
   const isNew = !db.ingredients.find(i=>i.name===name);
-  ddtItems.push({name, lotto, isNew});
+  window.ddtItems.push({name, lotto, isNew});
   nameEl.value=''; lottoEl.value='';
   document.getElementById('ddt-autocomplete').style.display='none';
   renderDDTItems();
@@ -1374,23 +1374,23 @@ function addDDTItem(){
 }
 
 function removeDDTItem(name){
-  ddtItems = ddtItems.filter(i=>i.name!==name);
+  window.ddtItems = window.ddtItems.filter(i=>i.name!==name);
   renderDDTItems();
 }
 
 function renderDDTItems(){
   const container = document.getElementById('ddt-items-list');
   if(!container) return;
-  if(!ddtItems.length){
+  if(!window.ddtItems.length){
     container.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:8px 0;font-style:italic">Nessun prodotto aggiunto. Usa il campo sotto per aggiungere.</div>';
     return;
   }
-  container.innerHTML = ddtItems.map((item,idx)=>`
+  container.innerHTML = window.ddtItems.map((item,idx)=>`
     <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px">
       <span style="font-weight:700;font-size:13px;flex:1;min-width:120px">${item.name}${item.isNew?'<span style="margin-left:8px;font-size:10px;background:var(--accent-lt);color:var(--accent);padding:2px 7px;border-radius:20px;font-weight:600;vertical-align:middle">NUOVO</span>':''}</span>
       <input type="text" value="${item.lotto}" placeholder="Lotto / Scadenza prodotto"
         style="flex:1.5;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:7px 10px;font-family:Outfit,sans-serif;font-size:12px;outline:none;text-transform:uppercase"
-        oninput="ddtItems[${idx}].lotto=this.value.toUpperCase()">
+        oninput="window.ddtItems[${idx}].lotto=this.value.toUpperCase()">
       <button onclick="removeDDTItem('${item.name.replace(/'/g,"\\'")}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:20px;line-height:1;padding:0 4px;transition:color .15s" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text3)'">&times;</button>
     </div>`).join('');
 }
@@ -1401,11 +1401,11 @@ function applyBatchDDT(){
   const dataDDT   = document.getElementById('ddt-data').value||'';
 
   if(!ddt && !fornitore){ toast('Inserisci almeno il numero DDT o il fornitore','warn'); return; }
-  if(!ddtItems.length){ toast('Aggiungi almeno un prodotto','warn'); return; }
+  if(!window.ddtItems.length){ toast('Aggiungi almeno un prodotto','warn'); return; }
 
   if(!db.animalData[dept]) db.animalData[dept]={};
 
-  ddtItems.forEach(item=>{
+  window.ddtItems.forEach(item=>{
     if(item.isNew && !db.ingredients.find(i=>i.name===item.name)){
       db.ingredients.push({name:item.name, isAnimal:true});
     }
@@ -1419,9 +1419,9 @@ function applyBatchDDT(){
   });
 
   saveDB();
-  toast(`DDT salvato per ${ddtItems.length} prodott${ddtItems.length===1?'o':'i'}!`);
+  toast(`DDT salvato per ${window.ddtItems.length} prodott${window.ddtItems.length===1?'o':'i'}!`);
   ['ddt-fornitore','ddt-numero','ddt-data'].forEach(id=>{ document.getElementById(id).value=''; });
-  ddtItems=[];
+  window.ddtItems=[];
   renderDDTItems();
   renderIngPageGrid();
 }

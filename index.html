@@ -812,11 +812,31 @@ function getR(){ return db.recipes[dept].find(r=>r.id===curId) }
 
 function collect(){
   const r=getR(); if(!r) return;
-  r.name=document.getElementById('f-name')?.value??r.name;
+  r.name=(document.getElementById('f-name')?.value??r.name).toUpperCase();
   r.dataProd=document.getElementById('f-dataprod')?.value||r.dataProd;
   r.giorniScadenza=parseInt(document.getElementById('f-scad')?.value)||r.giorniScadenza;
   r.temp=document.getElementById('f-temp')?.value||r.temp;
   r.note=(document.getElementById('f-note')?.value||'').toUpperCase();
+
+  // Collect all animal data fields from DOM directly into db.animalData
+  const animalIngs = r.ingredients.filter(i=>isAnimal(i));
+  animalIngs.forEach(ing=>{
+    const src = (r.animalSources||{})[ing] || dept;
+    const d_key = dept==='lab' ? 'lab' : (src==='lab'?'lab':'cucina');
+    // Only collect if this ingredient has editable fields visible (not locked/from-lab)
+    const fornEl  = document.querySelector(`[data-ing="${ing}"][data-field="fornitore"]`);
+    const ddtEl   = document.querySelector(`[data-ing="${ing}"][data-field="ddt"]`);
+    const dataEl  = document.querySelector(`[data-ing="${ing}"][data-field="dataDDT"]`);
+    const lottoEl = document.querySelector(`[data-ing="${ing}"][data-field="lotto"]`);
+    if(!fornEl) return; // locked/from-lab, skip
+    if(!db.animalData[d_key]) db.animalData[d_key]={};
+    if(!db.animalData[d_key][ing]) db.animalData[d_key][ing]={};
+    const entry = db.animalData[d_key][ing];
+    entry.fornitore = (fornEl.value||'').toUpperCase();
+    entry.ddt       = (ddtEl?.value||'').toUpperCase();
+    entry.dataDDT   = dataEl?.value||'';
+    entry.lotto     = (lottoEl?.value||'').toUpperCase();
+  });
 }
 
 function updateExpiry(){
@@ -981,15 +1001,19 @@ function renderAnimalBlock(r, ing){
     body=`<div class="g2">
       <div class="field"><label>Fornitore</label>
         <input type="text" value="${data.fornitore||''}" placeholder="Es. Latteria Valpadana"
+          data-ing="${ing}" data-field="fornitore"
           oninput="updateAnimal('${ingEsc}','fornitore',this.value,'${srcVal}')"></div>
       <div class="field"><label>N° DDT</label>
         <input type="text" value="${data.ddt||''}" placeholder="Es. DDT-2024-0042"
+          data-ing="${ing}" data-field="ddt"
           oninput="updateAnimal('${ingEsc}','ddt',this.value,'${srcVal}')"></div>
       <div class="field"><label>Data DDT</label>
         <input type="date" value="${data.dataDDT||''}"
+          data-ing="${ing}" data-field="dataDDT"
           oninput="updateAnimal('${ingEsc}','dataDDT',this.value,'${srcVal}')"></div>
       <div class="field"><label>Lotto / Scadenza prodotto</label>
         <input type="text" value="${data.lotto||''}" placeholder="Es. L240315 / 20/06/2024"
+          data-ing="${ing}" data-field="lotto"
           oninput="updateAnimal('${ingEsc}','lotto',this.value,'${srcVal}')"></div>
     </div>`;
   }
@@ -1454,6 +1478,8 @@ window.removeIngredientFromDB = removeIngredientFromDB;
 window.renderExpiryPage = renderExpiryPage;
 window.goToRecipe = goToRecipe;
 window.toggleAnimalSource = toggleAnimalSource;
+window.updateAnimal = updateAnimal;
+window.setAnimalSrc = setAnimalSrc;
 </script>
 </body>
 </html>

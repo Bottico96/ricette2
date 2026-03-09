@@ -59,15 +59,24 @@ input[type=text],input[type=number],textarea{text-transform:uppercase}
 .lbl-dept{position:absolute;bottom:10px;right:14px;font-size:9px;color:#aaa;text-transform:uppercase;letter-spacing:.5px}
 .lbl-note{font-size:9px;color:#555;text-transform:uppercase;margin-top:2px;font-style:italic;line-height:1.3}
 
-/* PRINT MEDIA — send exact label to printer */
+/* PRINT MEDIA — one label per page, exact 120x76mm */
 @media print{
+  @page {
+    size: 120mm 76mm;
+    margin: 0;
+  }
   body > *{ display:none !important }
-  #printFrame{ display:block !important; position:fixed; inset:0; z-index:9999 }
+  #printFrame{ display:block !important }
   #printFrame .label-120x76{
-    width:120mm; height:76mm;
-    border:none; box-shadow:none; border-radius:0;
-    padding:4mm 5mm;
-    page-break-after:always;
+    width: 120mm;
+    height: 76mm;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 4mm 5mm;
+    page-break-after: always;
+    break-after: page;
+    box-sizing: border-box;
   }
   #printFrame .lbl-name{font-size:16pt}
   #printFrame .lbl-row-val{font-size:8pt}

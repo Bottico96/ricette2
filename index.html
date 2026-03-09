@@ -481,7 +481,8 @@ const DEFAULT_DB = {
 };
 
 let db = JSON.parse(JSON.stringify(DEFAULT_DB));
-let _saving = false;
+let _saveTimer = null;
+let _lastSaved = null;
 
 // Show sync status in nav
 function setSyncStatus(msg, color){
@@ -490,17 +491,22 @@ function setSyncStatus(msg, color){
 }
 
 async function saveDB(){
-  if(_saving) return;
-  _saving = true;
+  // Debounce: wait 600ms after last call before actually saving
+  if(_saveTimer) clearTimeout(_saveTimer);
   setSyncStatus('💾 Salvataggio…','#e67e22');
-  try{
-    await setDoc(DB_DOC, { data: JSON.stringify(db) });
-    setSyncStatus('✓ Sincronizzato','#2d6a4f');
-  } catch(e){
-    console.error(e);
-    setSyncStatus('⚠ Errore sync','#c0392b');
-  }
-  _saving = false;
+  _saveTimer = setTimeout(async ()=>{
+    const snapshot = JSON.stringify(db);
+    // Don't save if nothing changed
+    if(snapshot === _lastSaved) { setSyncStatus('✓ Sincronizzato','#2d6a4f'); return; }
+    try{
+      await setDoc(DB_DOC, { data: snapshot });
+      _lastSaved = snapshot;
+      setSyncStatus('✓ Sincronizzato','#2d6a4f');
+    } catch(e){
+      console.error(e);
+      setSyncStatus('⚠ Errore sync','#c0392b');
+    }
+  }, 600);
 }
 
 // Real-time listener: when another PC saves, this PC updates automatically
@@ -509,7 +515,11 @@ function startRealtimeSync(){
     if(!snap || !snap.exists()) return;
     try{
       const remote = JSON.parse(snap.data().data);
+      const remoteStr = JSON.stringify(remote);
+      // Don't overwrite if this is our own save coming back
+      if(remoteStr === _lastSaved){ setSyncStatus('✓ Sincronizzato','#2d6a4f'); return; }
       db = normalizeDB(remote);
+      _lastSaved = remoteStr;
       // Refresh UI without disturbing current dept or open recipe
       renderSidebar();
       if(currentPage==='ingredients') renderIngredientsPage();

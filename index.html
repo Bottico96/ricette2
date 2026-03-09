@@ -369,20 +369,54 @@ body.dept-cucina .btn-new{background:var(--cuc)}
       </div>
     </div>
 
-    <div class="add-ing-card">
+    <!-- Tab navigation -->
+    <div style="display:flex;gap:0;margin-bottom:20px;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:var(--surface)">
+      <button id="tabBtnIng" onclick="switchIngTab('ing')" style="flex:1;padding:11px 16px;border:none;background:var(--lab);color:#fff;font-family:Outfit,sans-serif;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.4px;text-transform:uppercase;transition:all .2s">Inserisci Ingrediente</button>
+      <button id="tabBtnDDT" onclick="switchIngTab('ddt')" style="flex:1;padding:11px 16px;border:none;background:transparent;color:var(--text3);font-family:Outfit,sans-serif;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.4px;text-transform:uppercase;transition:all .2s">Inserisci DDT</button>
+    </div>
+
+    <!-- Tab: Aggiungi ingrediente -->
+    <div id="tabPanelIng" class="add-ing-card">
       <div class="add-ing-row">
         <div class="field" style="flex:2">
           <label>Aggiungi Prodotto di Origine Animale</label>
           <input type="text" id="newIngName" placeholder="Es. Salmone, Vitello, Pecorino…" onkeydown="if(event.key==='Enter')addNewIngredientFromPage()">
         </div>
-        <button class="btn-save" id="btnAddIng" onclick="addNewIngredientFromPage()">＋ Aggiungi</button>
+        <button class="btn-save" id="btnAddIng" onclick="addNewIngredientFromPage()">+ Aggiungi</button>
       </div>
       <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
         <div class="search-box" style="margin:0;background:var(--bg)">
-          <span style="color:var(--text3)"></span>
           <input type="text" id="ingSearch" placeholder="Cerca prodotto…" oninput="renderIngPageGrid()">
         </div>
       </div>
+    </div>
+
+    <!-- Tab: Inserisci DDT (batch) -->
+    <div id="tabPanelDDT" class="add-ing-card" style="display:none">
+      <p style="font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.6">Inserisci i dati del DDT una volta sola, seleziona i prodotti coinvolti e clicca <strong>Applica DDT</strong>. I dati verranno scritti su tutti i prodotti selezionati.</p>
+      <div class="g2" style="margin-bottom:16px">
+        <div class="field">
+          <label>Fornitore</label>
+          <input type="text" id="ddt-fornitore" placeholder="Es. Latteria Valpadana">
+        </div>
+        <div class="field">
+          <label>N° DDT</label>
+          <input type="text" id="ddt-numero" placeholder="Es. DDT-2024-0042">
+        </div>
+        <div class="field">
+          <label>Data DDT</label>
+          <input type="date" id="ddt-data">
+        </div>
+        <div class="field">
+          <label>Lotto / Scadenza Prodotto</label>
+          <input type="text" id="ddt-lotto" placeholder="Es. L240315 / 20/06/2024">
+        </div>
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--text3);font-weight:500;display:block;margin-bottom:10px">Seleziona i prodotti da aggiornare</label>
+        <div id="ddt-product-list" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      </div>
+      <button onclick="applyBatchDDT()" style="background:var(--lab);color:#fff;border:none;border-radius:7px;padding:10px 24px;font-family:Outfit,sans-serif;font-weight:700;font-size:13px;cursor:pointer;letter-spacing:.3px">Applica DDT ai prodotti selezionati</button>
     </div>
 
     <div id="ingPageGrid" class="ing-grid"></div>
@@ -716,7 +750,7 @@ function renderSimpleForm(r){
         <div class="dept-badge ${dept}">${isLab?'Laboratorio':'Cucina'}</div>
       </div>
       <div class="btn-row">
-        <button class="btn-sec btn-del" onclick="deleteRecipe()"></button>
+        <button class="btn-sec btn-del" onclick="deleteRecipe()" title="Elimina ricetta"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
         <button class="btn-sec" style="border-color:#1d4e89;color:#1d4e89" onclick="openPrintModalSimple()">️ Stampa</button>
         <button class="btn-save" onclick="saveSimpleRecipe()"> Salva</button>
       </div>
@@ -925,7 +959,7 @@ function renderForm(r){
       </div>
       <div class="btn-row">
         <button class="btn-sec btn-copy" onclick="copyToOther()">⎘ Copia in ${label(o)}</button>
-        <button class="btn-sec btn-del" onclick="deleteRecipe()"></button>
+        <button class="btn-sec btn-del" onclick="deleteRecipe()" title="Elimina ricetta"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
         <button class="btn-sec" style="border-color:#1d4e89;color:#1d4e89" onclick="openPrintModal()">️ Stampa</button>
         <button class="btn-save" onclick="saveRecipe()"> Salva</button>
       </div>
@@ -1166,6 +1200,12 @@ function showPage(page){
 
 // ── INGREDIENTS PAGE ──────────────────────────────────────
 function renderIngredientsPage(){
+  // Reset tab button colors to match current dept
+  const activeColor = dept==='lab' ? 'var(--lab)' : 'var(--cuc)';
+  const btnIng = document.getElementById('tabBtnIng');
+  const btnDDT = document.getElementById('tabBtnDDT');
+  if(btnIng && btnIng.style.background !== 'transparent'){ btnIng.style.background = activeColor; }
+  if(btnDDT && btnDDT.style.background !== 'transparent'){ btnDDT.style.background = activeColor; }
   // Update header badge to reflect current dept
   const lbl = document.getElementById('ingPageDeptLabel');
   if(lbl){
@@ -1262,6 +1302,72 @@ function saveIngCard(name){
   }
 }
 
+// ── DDT BATCH & TAB SWITCHING ─────────────────────────────
+function switchIngTab(tab){
+  const isIng = tab === 'ing';
+  document.getElementById('tabPanelIng').style.display = isIng ? '' : 'none';
+  document.getElementById('tabPanelDDT').style.display = isIng ? 'none' : '';
+  const btnIng = document.getElementById('tabBtnIng');
+  const btnDDT = document.getElementById('tabBtnDDT');
+  const activeColor = dept==='lab' ? 'var(--lab)' : 'var(--cuc)';
+  btnIng.style.background = isIng ? activeColor : 'transparent';
+  btnIng.style.color = isIng ? '#fff' : 'var(--text3)';
+  btnDDT.style.background = isIng ? 'transparent' : activeColor;
+  btnDDT.style.color = isIng ? 'var(--text3)' : '#fff';
+  if(!isIng) populateDDTProductList();
+}
+
+function populateDDTProductList(){
+  const container = document.getElementById('ddt-product-list');
+  if(!container) return;
+  const animals = db.ingredients.filter(i=>i.isAnimal);
+  if(!animals.length){
+    container.innerHTML = '<span style="font-size:12px;color:var(--text3)">Nessun prodotto di origine animale nel database.</span>';
+    return;
+  }
+  container.innerHTML = animals.map(i=>`
+    <label style="display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border:1px solid var(--border);border-radius:20px;cursor:pointer;font-size:12px;font-weight:500;background:var(--surface);transition:all .15s;user-select:none"
+      onmouseover="this.style.borderColor='var(--lab-bd)'" onmouseout="this.style.borderColor=this.querySelector('input').checked?'var(--lab)':'var(--border)'">
+      <input type="checkbox" value="${i.name}" style="accent-color:var(--lab);width:13px;height:13px" onchange="this.closest('label').style.background=this.checked?'var(--lab-lt)':'var(--surface)';this.closest('label').style.borderColor=this.checked?'var(--lab)':'var(--border)'">
+      ${i.name}
+    </label>`).join('');
+}
+
+function applyBatchDDT(){
+  const fornitore = (document.getElementById('ddt-fornitore').value||'').toUpperCase();
+  const ddt       = (document.getElementById('ddt-numero').value||'').toUpperCase();
+  const dataDDT   = document.getElementById('ddt-data').value||'';
+  const lotto     = (document.getElementById('ddt-lotto').value||'').toUpperCase();
+
+  if(!ddt && !fornitore){ toast('Inserisci almeno il numero DDT o il fornitore', 'warn'); return; }
+
+  const selected = [...document.querySelectorAll('#ddt-product-list input[type=checkbox]:checked')]
+    .map(cb => cb.value);
+
+  if(!selected.length){ toast('Seleziona almeno un prodotto', 'warn'); return; }
+
+  if(!db.animalData[dept]) db.animalData[dept]={};
+  selected.forEach(ing=>{
+    if(!db.animalData[dept][ing]) db.animalData[dept][ing]={};
+    const entry = db.animalData[dept][ing];
+    if(fornitore) entry.fornitore = fornitore;
+    if(ddt)       entry.ddt       = ddt;
+    if(dataDDT)   entry.dataDDT   = dataDDT;
+    if(lotto)     entry.lotto     = lotto;
+    entry._updated = new Date().toLocaleString('it-IT');
+  });
+
+  saveDB();
+  toast(`DDT applicato a ${selected.length} prodott${selected.length===1?'o':'i'}!`);
+
+  // Reset form
+  ['ddt-fornitore','ddt-numero','ddt-data','ddt-lotto'].forEach(id=>{
+    document.getElementById(id).value='';
+  });
+  populateDDTProductList();
+  renderIngPageGrid();
+}
+
 function addNewIngredientFromPage(){
   const nameEl = document.getElementById('newIngName');
   const name = nameEl?.value?.trim().toUpperCase();
@@ -1345,9 +1451,14 @@ function renderExpiryPage(){
       <td>${dLabel}</td>
       <td>${formatDate(r.dataProd)}</td>
       <td style="font-weight:700;color:var(--danger)">${formatDate(exp)}</td>
-      <td><span class="exp-badge scaduto">⛔ ${gg === 1 ? '1 giorno fa' : gg+' giorni fa'}</span></td>
+      <td><span class="exp-badge scaduto">${gg === 1 ? '1 giorno fa' : gg+' giorni fa'}</span></td>
       <td style="font-size:12px;color:var(--text2)">${tempIco}</td>
-      <td><button class="exp-link" onclick="goToRecipe('${r.id}','${d}')" style="font-size:11px;color:var(--text3)">Vai →</button></td>
+      <td style="display:flex;gap:8px;align-items:center">
+        <button class="exp-link" onclick="goToRecipe('${r.id}','${d}')" style="font-size:11px;color:var(--text3)">Vai →</button>
+        <button onclick="deleteExpiredRecipe('${r.id}','${d}')" title="Elimina preparazione" style="background:none;border:1px solid var(--danger);color:var(--danger);border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px;font-family:Outfit,sans-serif;font-weight:600;transition:all .2s" onmouseover="this.style.background='rgba(176,48,48,.08)'" onmouseout="this.style.background='none'">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        </button>
+      </td>
     </tr>`;
   }).join('');
 
@@ -1358,6 +1469,15 @@ function renderExpiryPage(){
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
+}
+
+function deleteExpiredRecipe(id, d){
+  if(!confirm('Eliminare questa preparazione scaduta?')) return;
+  db.recipes[d] = db.recipes[d].filter(r=>r.id!==id);
+  saveDB();
+  renderExpiryPage();
+  if(curId===id){ curId=null; renderSidebar(); document.getElementById('mainArea').innerHTML='<div class="welcome"><div style="font-size:48px;opacity:.15;margin-bottom:16px">✦</div><h2>Seleziona o crea una ricetta</h2></div>'; }
+  toast('Preparazione eliminata');
 }
 
 function goToRecipe(id, d){
@@ -1497,6 +1617,10 @@ window.renderIngredientsPage = renderIngredientsPage;
 window.renderIngPageGrid = renderIngPageGrid;
 window.saveIngCard = saveIngCard;
 window.addNewIngredientFromPage = addNewIngredientFromPage;
+window.switchIngTab = switchIngTab;
+window.applyBatchDDT = applyBatchDDT;
+window.populateDDTProductList = populateDDTProductList;
+window.deleteExpiredRecipe = deleteExpiredRecipe;
 window.removeIngredientFromDB = removeIngredientFromDB;
 window.renderExpiryPage = renderExpiryPage;
 window.goToRecipe = goToRecipe;

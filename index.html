@@ -628,7 +628,7 @@ function switchDept(d){
   document.getElementById('btnLab').className='dept-btn'+(d==='lab'?' lab-on':'');
   document.getElementById('btnCuc').className='dept-btn'+(d==='cucina'?' cuc-on':'');
   document.getElementById('sbTitle').textContent='RICETTE '+label(d).toUpperCase();
-  document.getElementById('welcomeDept').textContent=label(d);
+  const wdEl=document.getElementById('welcomeDept'); if(wdEl) wdEl.textContent=label(d);
   // Always reset main area when switching dept
   document.getElementById('mainArea').innerHTML=`<div class="welcome">
     <div class="welcome-icon">${d==='lab'?'🔬':'🍳'}</div>
@@ -1427,7 +1427,6 @@ function doPrint(){
   frame.innerHTML = html;
   frame.style.display = 'block';
   setTimeout(()=>{
-    window.print();
     frame.style.display = 'none';
     closePrintModal();
     toast(`Etichetta inviata alla stampante (${copies} ${copies===1?'copia':'copie'})!`);
@@ -1477,7 +1476,7 @@ window.addNewIngredientFromPage = addNewIngredientFromPage;
 window.removeIngredientFromDB = removeIngredientFromDB;
 window.renderExpiryPage = renderExpiryPage;
 window.goToRecipe = goToRecipe;
-window.toggleAnimalSource = toggleAnimalSource;
+window.toggleAnimalSource = setAnimalSrc; // alias
 window.updateAnimal = updateAnimal;
 window.setAnimalSrc = setAnimalSrc;
 </script>

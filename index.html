@@ -939,6 +939,7 @@ function renderIngTags(r){
 }
 
 function renderAnimalBlock(r, ing){
+  ing = ing.toUpperCase();
   const src=(r.animalSources||{})[ing]||'cucina';
   const isLab=dept==='lab';
   const labD=db.animalData.lab?.[ing]||{};
@@ -1000,6 +1001,8 @@ function renderAnimalBlock(r, ing){
 
 // ── ANIMAL DATA ──────────────────────────────────────────
 function updateAnimal(ing, field, val, src){
+  ing = ing.toUpperCase();
+  val = (field==='dataDDT') ? val : val.toUpperCase();
   const d=dept==='lab'?'lab':(src==='lab'?'lab':'cucina');
   if(!db.animalData[d]) db.animalData[d]={};
   if(!db.animalData[d][ing]) db.animalData[d][ing]={};
@@ -1008,6 +1011,7 @@ function updateAnimal(ing, field, val, src){
 }
 
 function setAnimalSrc(ing, src){
+  ing = ing.toUpperCase();
   const r=getR(); if(!r) return;
   if(!r.animalSources) r.animalSources={};
   r.animalSources[ing]=src;

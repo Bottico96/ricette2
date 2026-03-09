@@ -289,6 +289,7 @@ body.dept-cucina .btn-new{background:var(--cuc)}
 /* ANIMAL BLOCKS */
 .ab{background:var(--animal-lt);border:1px solid var(--animal-bd);border-radius:10px;padding:16px;margin-bottom:12px}
 .ab.from-lab{background:var(--transfer-lt);border-color:var(--transfer-bd)}
+.ab.from-cuc{background:var(--cuc-lt);border-color:var(--cuc-bd)}
 .ab-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .ab-name{font-weight:600;font-size:13px;display:flex;align-items:center;gap:7px}
 .ab-name.ac{color:var(--animal)}.ab-name.tc{color:var(--transfer)}
@@ -1045,34 +1046,52 @@ function renderIngTags(r){
 
 function renderAnimalBlock(r, ing){
   ing = ing.toUpperCase();
-  const src=(r.animalSources||{})[ing]||'cucina';
-  const isLab=dept==='lab';
-  const labD=db.animalData.lab?.[ing]||{};
-  const cucD=db.animalData.cucina?.[ing]||{};
-  const data=isLab?labD:(src==='lab'?labD:cucD);
-  const locked=!isLab&&src==='lab';
-  const fromLab=locked;
+  const ingEsc = ing.replace(/'/g,"\\'");
+  const src = (r.animalSources||{})[ing] || (dept==='lab' ? 'lab' : 'cucina');
+  const isLab = dept==='lab';
+  const labD = db.animalData.lab?.[ing]||{};
+  const cucD = db.animalData.cucina?.[ing]||{};
+
+  // locked = pulling from the other dept's data (read-only)
+  const lockedFromLab = !isLab && src==='lab';
+  const lockedFromCuc = isLab && src==='cucina';
+  const locked = lockedFromLab || lockedFromCuc;
+
+  // which data to show/edit
+  const data = locked
+    ? (lockedFromLab ? labD : cucD)
+    : (isLab ? labD : cucD);
+
+  // styling
+  const abClass = lockedFromLab ? 'from-lab' : lockedFromCuc ? 'from-cuc' : '';
+  const nameClass = lockedFromLab ? 'tc' : 'ac';
+  const badge = lockedFromLab
+    ? '<span class="shared-badge" style="background:var(--lab-lt);color:var(--lab);border-color:var(--lab-bd)">› Dati dal Lab</span>'
+    : lockedFromCuc
+      ? '<span class="shared-badge" style="background:var(--cuc-lt);color:var(--cuc);border-color:var(--cuc-bd)">› Dati dalla Cucina</span>'
+      : '';
 
   let body='';
   if(locked){
-    const has=labD.fornitore||labD.ddt||labD.lotto;
+    const d = lockedFromLab ? labD : cucD;
+    const srcLabel = lockedFromLab ? 'Laboratorio' : 'Cucina';
+    const has = d.fornitore||d.ddt||d.lotto;
+    const pullClass = lockedFromLab ? 'lab-pull' : 'lab-pull';
+    const pullStyle = lockedFromCuc ? 'background:var(--cuc-lt);border-color:var(--cuc-bd);color:var(--cuc)' : '';
     if(has){
-      body=`<div class="lab-pull">
-        
-        <div><strong>Dati dal Laboratorio</strong><br>
-        ${labD.fornitore?`Fornitore: <strong>${labD.fornitore}</strong><br>`:''}
-        ${labD.ddt?`DDT: <strong>${labD.ddt}</strong>`:''}${labD.dataDDT?` — Data: <strong>${labD.dataDDT}</strong>`:''}
-        ${labD.lotto?`<br>Lotto/Scad: <strong>${labD.lotto}</strong>`:''}</div>
+      body=`<div class="${pullClass}" style="${pullStyle}">
+        <div><strong>Dati dalla ${srcLabel}</strong><br>
+        ${d.fornitore?`Fornitore: <strong>${d.fornitore}</strong><br>`:''}
+        ${d.ddt?`DDT: <strong>${d.ddt}</strong>`:''}${d.dataDDT?` — Data: <strong>${d.dataDDT}</strong>`:''}
+        ${d.lotto?`<br>Lotto/Scad: <strong>${d.lotto}</strong>`:''}</div>
       </div>`;
     } else {
-      body=`<div class="lab-pull">
-        <span class="lpi">!️</span>
-        <div>Il Laboratorio non ha ancora registrato i dati per <strong>${ing}</strong>. Appariranno automaticamente non appena il Lab li inserisce.</div>
+      body=`<div class="${pullClass}" style="${pullStyle}">
+        <div>La ${srcLabel} non ha ancora registrato i dati per <strong>${ing}</strong>. Appariranno automaticamente non appena vengono inseriti.</div>
       </div>`;
     }
   } else {
-    const ingEsc=ing.replace(/'/g,"\\'");
-    const srcVal=isLab?'lab':src;
+    const srcVal = isLab ? 'lab' : src;
     body=`<div class="g2">
       <div class="field"><label>Fornitore</label>
         <input type="text" value="${data.fornitore||''}" placeholder="Es. Latteria Valpadana"
@@ -1093,16 +1112,23 @@ function renderAnimalBlock(r, ing){
     </div>`;
   }
 
-  return `<div class="ab ${fromLab?'from-lab':''}" id="ab-${ing.replace(/\s/g,'_')}">
+  // Toggle buttons — shown for BOTH depts
+  const toggleBtns = isLab
+    ? `<div class="src-toggle">
+        <button class="src-btn ${src==='lab'?'on-lab':''}" onclick="setAnimalSrc('${ingEsc}','lab')">Lab</button>
+        <button class="src-btn ${src==='cucina'?'on-cuc':''}" onclick="setAnimalSrc('${ingEsc}','cucina')">Da Cucina</button>
+      </div>`
+    : `<div class="src-toggle">
+        <button class="src-btn ${src==='cucina'?'on-cuc':''}" onclick="setAnimalSrc('${ingEsc}','cucina')">Cucina</button>
+        <button class="src-btn ${src==='lab'?'on-lab':''}" onclick="setAnimalSrc('${ingEsc}','lab')">Da Lab</button>
+      </div>`;
+
+  return `<div class="ab ${abClass}" id="ab-${ing.replace(/\s/g,'_')}">
     <div class="ab-head">
-      <div class="ab-name ${fromLab?'tc':'ac'}">
-        ${fromLab?'›':''} ${ing}
-        ${fromLab?'<span class="shared-badge">› Dati dal Lab</span>':''}
+      <div class="ab-name ${nameClass}">
+        ${ing} ${badge}
       </div>
-      ${!isLab?`<div class="src-toggle">
-        <button class="src-btn ${src==='cucina'?'on-cuc':''}" onclick="setAnimalSrc('${ing.replace(/'/g,"\\'")}','cucina')">Cucina</button>
-        <button class="src-btn ${src==='lab'?'on-lab':''}" onclick="setAnimalSrc('${ing.replace(/'/g,"\\'")}','lab')"> Da Lab</button>
-      </div>`:''}
+      ${toggleBtns}
     </div>
     ${body}
   </div>`;
@@ -1112,7 +1138,8 @@ function renderAnimalBlock(r, ing){
 function updateAnimal(ing, field, val, src){
   ing = ing.toUpperCase();
   val = (field==='dataDDT') ? val : val.toUpperCase();
-  const d=dept==='lab'?'lab':(src==='lab'?'lab':'cucina');
+  // src tells us which dept's data we're editing
+  const d = src==='lab' ? 'lab' : 'cucina';
   if(!db.animalData[d]) db.animalData[d]={};
   if(!db.animalData[d][ing]) db.animalData[d][ing]={};
   db.animalData[d][ing][field]=val;

@@ -1657,11 +1657,11 @@ function doPrint(){
   for(let i=0;i<copies;i++) html += buildLabelHTML(r);
   frame.innerHTML = html;
   frame.style.display = 'block';
+  closePrintModal();
   setTimeout(()=>{
-    frame.style.display = 'none';
-    closePrintModal();
-    toast(`Etichetta inviata alla stampante (${copies} ${copies===1?'copia':'copie'})!`);
-  }, 150);
+    window.print();
+    setTimeout(()=>{ frame.style.display = 'none'; }, 500);
+  }, 300);
 }
 
 // close print modal on overlay click

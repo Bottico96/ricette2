@@ -1099,6 +1099,7 @@ function renderIngTags(r){
   if(!r.ingredients.length) return `<span style="color:var(--text3);font-size:12px;font-style:italic">Nessun ingrediente aggiunto</span>`;
   return r.ingredients.map(i=>{
     const anim=isAnimal(i);
+    const allerg=isAllergen(i);
     const src=(r.animalSources||{})[i];
     const fromLab=anim&&src==='lab';
     return `<span class="ing-tag ${fromLab?'transfer':anim?'animal':''}">
@@ -1255,32 +1256,56 @@ function addIngFromInput(){
 async function promptNewIng(name){
   document.getElementById('animalModalTxt').textContent=`"${name}" è un prodotto di origine animale? Se non lo è, clicca "Non animale".`;
   const isAnim=await openAnimalModal();
-  // Ask AI if it's an allergen (14 EU allergens)
-  const isAllerg = await detectAllergen(name);
+  const isAllerg = detectAllergen(name);
   db.ingredients.push({name, isAnimal:isAnim, isAllergen:isAllerg}); saveDB();
   selectIng(name);
   if(isAllerg) toast(`"${name}" rilevato come allergene EU e segnalato in etichetta`, 'info');
 }
 
-async function detectAllergen(name){
-  try{
-    const res = await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:10,
-        system:'Rispondi SOLO con "si" o "no". Nessun altro testo.',
-        messages:[{role:'user',content:`L'ingrediente "${name}" è uno dei 14 allergeni alimentari obbligatori secondo il Regolamento UE 1169/2011? (glutine, crostacei, uova, pesce, arachidi, soia, latte/lattosio, frutta a guscio, sedano, senape, sesamo, anidride solforosa/solfiti, lupini, molluschi)`}]
-      })
-    });
-    const data = await res.json();
-    const answer = (data.content?.[0]?.text||'').toLowerCase().trim();
-    return answer.startsWith('s');
-  } catch(e){
-    console.warn('Allergen detection failed:', e);
-    return false;
-  }
+// 14 allergeni EU - rilevamento locale per parole chiave
+const ALLERGEN_KEYWORDS = [
+  // Glutine
+  'farina','frumento','grano','orzo','segale','avena','farro','kamut','spelta','triticale',
+  'semola','crusca','glutine','pasta','pane','pangrattato','panko','crackers','biscotto',
+  // Crostacei
+  'gambero','gamberi','granchio','aragosta','astice','scampo','scampi','mazzancolla',
+  'crostaceo','crostacei','cicala',
+  // Uova
+  'uovo','uova','albume','tuorlo','maionese',
+  // Pesce
+  'acciuga','acciughe','alice','alici','baccala','branzino','cefalo','merluzzo','orata',
+  'pesce','salmone','sardina','sardine','sogliola','tonno','trota','sgombro','anguilla',
+  'caviale','worcester','worcestershire',
+  // Arachidi
+  'arachide','arachidi','burro di arachidi',
+  // Soia
+  'soia','tofu','tempeh','edamame','miso','tamari',
+  // Latte
+  'latte','burro','panna','formaggio','mozzarella','grana','parmigiano','pecorino',
+  'gorgonzola','ricotta','mascarpone','brie','camembert','gruviera','fontina','asiago',
+  'provolone','scamorza','caciotta','yogurt','kefir','caseina','lattosio','siero',
+  'latte intero','latte parzialmente','latte scremato',
+  // Frutta a guscio
+  'mandorla','mandorle','noce','noci','nocciola','nocciole','pistacchio','pistacchi',
+  'anacardo','anacardi','pecan','macadamia','pinolo','pinoli','castagna','castagne',
+  // Sedano
+  'sedano','sedanorapa','semi di sedano',
+  // Senape
+  'senape','mostarda',
+  // Sesamo
+  'sesamo','tahini','tahina',
+  // Solfiti/anidride solforosa
+  'solfito','solfiti','anidride solforosa','vino','aceto di vino',
+  // Lupini
+  'lupino','lupini','farina di lupino',
+  // Molluschi
+  'cozza','cozze','vongola','vongole','ostrica','ostriche','polpo','calamaro','seppia',
+  'lumaca','lumache','mollusco','molluschi'
+];
+
+function detectAllergen(name){
+  const n = name.toLowerCase();
+  return ALLERGEN_KEYWORDS.some(kw => n.includes(kw) || kw.includes(n.replace(/\s+/g,' ').trim()));
 }
 
 function selectIng(name){
@@ -1520,7 +1545,7 @@ async function applyBatchDDT(){
 
   for(const item of window.ddtItems){
     if(item.isNew && !db.ingredients.find(i=>i.name===item.name)){
-      const isAllerg = await detectAllergen(item.name);
+      const isAllerg = detectAllergen(item.name);
       db.ingredients.push({name:item.name, isAnimal:true, isAllergen:isAllerg});
     }
     if(!db.animalData[dept][item.name]) db.animalData[dept][item.name]={};
@@ -1549,7 +1574,7 @@ async function addNewIngredientFromPage(){
   if(db.ingredients.find(i=>i.name.toUpperCase()===name)){
     toast(`"${name}" è già nel database`,'warn'); return;
   }
-  const isAllerg = await detectAllergen(name);
+  const isAllerg = detectAllergen(name);
   db.ingredients.push({name, isAnimal:true, isAllergen:isAllerg});
   saveDB();
   nameEl.value='';

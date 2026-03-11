@@ -62,34 +62,36 @@ input[type=text],input[type=number],textarea{text-transform:uppercase}
   box-shadow:0 2px 12px rgba(0,0,0,.12);
   display:flex; flex-direction:column;
   font-family:'Outfit',sans-serif;
+  font-weight:400;
   overflow:hidden; position:relative;
   box-sizing:border-box;
 }
 /* Header row: name left, logo right */
 .lbl-header{display:flex;align-items:flex-start;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:5px;margin-bottom:5px}
-.lbl-name{font-family:'Outfit',sans-serif;font-size:17px;font-weight:800;color:#111;line-height:1.15;text-transform:uppercase;flex:1;padding-right:8px}
+.lbl-name{font-family:'Outfit',sans-serif;font-size:17px;font-weight:700;color:#111;line-height:1.15;text-transform:uppercase;flex:1;padding-right:8px}
 .lbl-logo{height:28px;width:auto;object-fit:contain;flex-shrink:0}
 /* Ingredients line */
-.lbl-ings{font-size:10px;color:#333;margin-bottom:5px;border-bottom:1px solid #ddd;padding-bottom:4px;line-height:1.3}
+.lbl-ings{font-size:9.5px;font-weight:300;color:#333;margin-bottom:4px;border-bottom:1px solid #ddd;padding-bottom:3px;line-height:1.4}
 /* Dates */
-.lbl-consume{font-size:11px;color:#111;margin-bottom:2px}
-.lbl-consume strong{font-weight:700}
-.lbl-temp-line{font-size:11px;color:#111;margin-bottom:2px;font-weight:600}
+.lbl-consume{font-size:10px;color:#111;margin-bottom:1px}
+.lbl-consume strong{font-weight:600}
+.lbl-temp-line{font-size:10px;color:#111;margin-bottom:1px;font-weight:400}
 .lbl-meta-row{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:2px}
-.lbl-lotto{font-size:10px;color:#111}
-.lbl-lotto strong{font-weight:700}
-.lbl-qty-inline{font-size:10px;font-weight:700;color:#111;text-align:right}
-.lbl-qty-inline span{font-size:15px;font-weight:800;display:block;line-height:1.1}
+.lbl-lotto{font-size:10px;font-weight:400;color:#111}
+.lbl-lotto strong{font-weight:600}
+.lbl-qty-inline{font-size:10px;font-weight:400;color:#111;text-align:right}
+.lbl-qty-inline span{font-size:14px;font-weight:700;display:block;line-height:1.1}
 /* Animal traceability */
 .lbl-animal-block{margin-bottom:3px}
-.lbl-animal-title{font-size:9px;text-transform:uppercase;letter-spacing:.3px;color:#111;font-weight:700;margin-bottom:1px}
-.lbl-animal-row{font-size:8px;color:#444;font-weight:400;text-transform:uppercase;line-height:1.4}
+.lbl-animal-title{display:none}
+.lbl-animal-row{font-size:8px;color:#333;font-weight:400;text-transform:uppercase;line-height:1.5}
+.lbl-animal-row strong{font-size:9px;font-weight:600;color:#111}
 .lbl-divider{border:none;border-top:1px solid #e0e0e0;margin:3px 0}
 .lbl-note{font-size:9px;color:#555;text-transform:uppercase;margin-top:2px;font-style:italic;line-height:1.3}
 /* Footer: address */
-.lbl-footer{margin-top:auto;padding-top:4px;text-align:center;border-top:1px solid #ddd}
-.lbl-footer-name{font-size:9px;font-weight:700;color:#111}
-.lbl-footer-addr{font-size:8px;color:#555}
+.lbl-footer{margin-top:auto;padding-top:3px;text-align:center;border-top:1px solid #ddd}
+.lbl-footer-name{font-size:8.5px;font-weight:600;color:#111}
+.lbl-footer-addr{font-size:7.5px;font-weight:300;color:#555}
 /* Legacy kept for compatibility */
 .lbl-row{display:flex;align-items:baseline;gap:6px;margin-bottom:2px;font-size:10px}
 .lbl-row-key{color:#666;font-weight:600;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;min-width:60px;font-size:9px}
@@ -1671,8 +1673,7 @@ function buildLabelHTML(r){
       const d = db.animalData[src]?.[ing] || {};
       if(!d.fornitore && !d.ddt && !d.lotto) return;
       animalHTML += `<div class="lbl-animal-block">
-        <div class="lbl-animal-title">${ing}</div>
-        <div class="lbl-animal-row">${d.fornitore?`${d.fornitore}`:'' }${d.ddt?` — DDT: ${d.ddt}`:'' }${d.dataDDT?` (${formatDate(d.dataDDT)})`:'' }${d.lotto?` — Lotto: ${d.lotto}`:''}</div>
+        <div class="lbl-animal-row"><strong>${ing}</strong>${d.fornitore?` — ${d.fornitore}`:'' }${d.ddt?` — DDT: ${d.ddt}`:'' }${d.dataDDT?` (${formatDate(d.dataDDT)})`:'' }${d.lotto?` — Lotto: ${d.lotto}`:''}</div>
       </div>`;
     });
   }

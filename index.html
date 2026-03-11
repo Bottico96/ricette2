@@ -564,11 +564,11 @@ const DB_DOC  = doc(fireDB, 'ristorante', 'database');
 // ── DATABASE ──────────────────────────────────────────────
 const DEFAULT_DB = {
   ingredients:[
-    {name:'BURRO',isAnimal:true},{name:'UOVA',isAnimal:true},
-    {name:'LATTE INTERO',isAnimal:true},{name:'PANNA FRESCA',isAnimal:true},
-    {name:'PARMIGIANO REGGIANO',isAnimal:true},{name:'PROSCIUTTO CRUDO',isAnimal:true},
+    {name:'BURRO',isAnimal:true,isAllergen:true},{name:'UOVA',isAnimal:true,isAllergen:true},
+    {name:'LATTE INTERO',isAnimal:true,isAllergen:true},{name:'PANNA FRESCA',isAnimal:true,isAllergen:true},
+    {name:'PARMIGIANO REGGIANO',isAnimal:true,isAllergen:true},{name:'PROSCIUTTO CRUDO',isAnimal:true},
     {name:'PANCETTA',isAnimal:true},{name:'TENDINI',isAnimal:true},
-    {name:'MANZO',isAnimal:true},{name:'FARINA 00',isAnimal:false},
+    {name:'MANZO',isAnimal:true},{name:'FARINA 00',isAnimal:false,isAllergen:true},
     {name:'SALE',isAnimal:false},{name:'OLIO EVO',isAnimal:false},
     {name:'AGLIO',isAnimal:false},{name:'POMODORI',isAnimal:false},{name:'BASILICO',isAnimal:false},
   ],
@@ -633,7 +633,7 @@ function startRealtimeSync(){
 
 function normalizeDB(d){
   // Normalize all text fields to UPPERCASE
-  if(d.ingredients) d.ingredients = d.ingredients.map(i=>({...i, name: i.name.toUpperCase()}));
+  if(d.ingredients) d.ingredients = d.ingredients.map(i=>({...i, name: i.name.toUpperCase(), isAllergen: i.isAllergen||false}));
   if(d.recipes){
     ['lab','cucina'].forEach(dept=>{
       if(d.recipes[dept]) d.recipes[dept] = d.recipes[dept].map(r=>({
@@ -641,7 +641,10 @@ function normalizeDB(d){
         name: (r.name||'').toUpperCase(),
         ingredients: (r.ingredients||[]).map(i=>i.toUpperCase()),
         animalSources: Object.fromEntries(Object.entries(r.animalSources||{}).map(([k,v])=>[k.toUpperCase(),v])),
-        note: (r.note||'').toUpperCase()
+        note: (r.note||'').toUpperCase(),
+        lotto: r.lotto||null,
+        qty: r.qty||'',
+        qtyUnit: r.qtyUnit||'g'
       }));
     });
   }
@@ -666,7 +669,7 @@ function normalizeDB(d){
     if(d.recipes && d.recipes[dk]) d.recipes[dk].forEach(r=>{
       if(!r.lotto) r.lotto=genLotto();
       if(r.qty===undefined) r.qty='';
-      if(!r.qtyUnit) r.qtyUnit='kg';
+      if(!r.qtyUnit) r.qtyUnit='g';
     });
   });
   return d;
@@ -710,6 +713,7 @@ function genLotto(){
   return `${yyyy}${mm}${dd}-${rand}`;
 }
 function isAnimal(n){ const f=db.ingredients.find(i=>i.name.toLowerCase()===n.toLowerCase()); return f?f.isAnimal:false }
+function isAllergen(n){ const f=db.ingredients.find(i=>i.name.toLowerCase()===n.toLowerCase()); return f?f.isAllergen:false }
 
 function calcExpiry(dataProd, giorni){
   if(!dataProd || !giorni) return '';
@@ -783,12 +787,12 @@ function renderSidebar(){
 
 // ── RECIPE CRUD ──────────────────────────────────────────
 function newRecipe(){
-  const r={id:uid(),name:'',ingredients:[],animalSources:{},dataProd:today(),giorniScadenza:3,temp:'+3',note:'',lotto:genLotto(),qty:'',qtyUnit:'kg'};
+  const r={id:uid(),name:'',ingredients:[],animalSources:{},dataProd:today(),giorniScadenza:3,temp:'+3',note:'',lotto:genLotto(),qty:'',qtyUnit:'g'};
   db.recipes[dept].unshift(r); saveDB();
   curId=r.id; renderSidebar(); renderForm(r);
 }
 function newSimpleRecipe(){
-  const r={id:uid(),name:'',dataProd:today(),giorniScadenza:3,temp:'+3',note:'',simple:true,lotto:genLotto(),qty:'',qtyUnit:'kg'};
+  const r={id:uid(),name:'',dataProd:today(),giorniScadenza:3,temp:'+3',note:'',simple:true,lotto:genLotto(),qty:'',qtyUnit:'g'};
   db.recipes[dept].unshift(r); saveDB();
   curId=r.id; renderSidebar(); renderSimpleForm(r);
 }
@@ -836,10 +840,10 @@ function renderSimpleForm(r){
           <input type="text" id="f-qty" value="${r.qty||''}" placeholder="Es. 500" oninput="collectSimple()"></div>
         <div class="field" style="margin-bottom:0"><label>Unità</label>
           <select id="f-qtyunit" onchange="collectSimple()">
-            <option value="pz"  ${(r.qtyUnit||'kg')==='pz' ?'selected':''}>pz</option>
-            <option value="g"   ${(r.qtyUnit||'kg')==='g'  ?'selected':''}>g</option>
-            <option value="kg"  ${(r.qtyUnit||'kg')==='kg' ?'selected':''}>kg</option>
-            <option value="l"   ${(r.qtyUnit||'kg')==='l'  ?'selected':''}>l</option>
+            <option value="pz"  ${(r.qtyUnit||'g')==='pz' ?'selected':''}>pz</option>
+            <option value="g"   ${(r.qtyUnit||'g')==='g'  ?'selected':''}>g</option>
+            <option value="kg"  ${(r.qtyUnit||'g')==='kg' ?'selected':''}>kg</option>
+            <option value="l"   ${(r.qtyUnit||'g')==='l'  ?'selected':''}>l</option>
           </select></div>
       </div>
     </div>
@@ -942,7 +946,7 @@ function collect(){
   r.temp=document.getElementById('f-temp')?.value||r.temp;
   r.note=(document.getElementById('f-note')?.value||'').toUpperCase();
   r.qty=(document.getElementById('f-qty')?.value||'').toUpperCase();
-  r.qtyUnit=document.getElementById('f-qtyunit')?.value||r.qtyUnit||'kg';
+  r.qtyUnit=document.getElementById('f-qtyunit')?.value||r.qtyUnit||'g';
 
   // Collect all animal data fields from DOM directly into db.animalData
   const animalIngs = r.ingredients.filter(i=>isAnimal(i));
@@ -1055,10 +1059,10 @@ function renderForm(r){
           <input type="text" id="f-qty" value="${r.qty||''}" placeholder="Es. 500" oninput="collect()"></div>
         <div class="field" style="margin-bottom:0"><label>Unità</label>
           <select id="f-qtyunit" onchange="collect()">
-            <option value="pz"  ${(r.qtyUnit||'kg')==='pz' ?'selected':''}>pz</option>
-            <option value="g"   ${(r.qtyUnit||'kg')==='g'  ?'selected':''}>g</option>
-            <option value="kg"  ${(r.qtyUnit||'kg')==='kg' ?'selected':''}>kg</option>
-            <option value="l"   ${(r.qtyUnit||'kg')==='l'  ?'selected':''}>l</option>
+            <option value="pz"  ${(r.qtyUnit||'g')==='pz' ?'selected':''}>pz</option>
+            <option value="g"   ${(r.qtyUnit||'g')==='g'  ?'selected':''}>g</option>
+            <option value="kg"  ${(r.qtyUnit||'g')==='kg' ?'selected':''}>kg</option>
+            <option value="l"   ${(r.qtyUnit||'g')==='l'  ?'selected':''}>l</option>
           </select></div>
       </div>
       <div class="field"><label>Note</label>
@@ -1098,7 +1102,7 @@ function renderIngTags(r){
     const src=(r.animalSources||{})[i];
     const fromLab=anim&&src==='lab';
     return `<span class="ing-tag ${fromLab?'transfer':anim?'animal':''}">
-      ${fromLab?'› ':anim?' ':''}${i}
+      ${fromLab?'› ':anim?' ':''}${allerg?`<strong style="text-decoration:underline">${i}</strong>`:i}
       <button onclick="removeIng('${i.replace(/'/g,"\\'")}')">×</button>
     </span>`;
   }).join('');
@@ -1249,12 +1253,34 @@ function addIngFromInput(){
 }
 
 async function promptNewIng(name){
-  // All ingredients added via recipe are treated as animal origin.
-  // Non-animal items can be added freely from the Ingredienti page.
   document.getElementById('animalModalTxt').textContent=`"${name}" è un prodotto di origine animale? Se non lo è, clicca "Non animale".`;
   const isAnim=await openAnimalModal();
-  db.ingredients.push({name, isAnimal:isAnim}); saveDB();
+  // Ask AI if it's an allergen (14 EU allergens)
+  const isAllerg = await detectAllergen(name);
+  db.ingredients.push({name, isAnimal:isAnim, isAllergen:isAllerg}); saveDB();
   selectIng(name);
+  if(isAllerg) toast(`"${name}" rilevato come allergene EU e segnalato in etichetta`, 'info');
+}
+
+async function detectAllergen(name){
+  try{
+    const res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:10,
+        system:'Rispondi SOLO con "si" o "no". Nessun altro testo.',
+        messages:[{role:'user',content:`L'ingrediente "${name}" è uno dei 14 allergeni alimentari obbligatori secondo il Regolamento UE 1169/2011? (glutine, crostacei, uova, pesce, arachidi, soia, latte/lattosio, frutta a guscio, sedano, senape, sesamo, anidride solforosa/solfiti, lupini, molluschi)`}]
+      })
+    });
+    const data = await res.json();
+    const answer = (data.content?.[0]?.text||'').toLowerCase().trim();
+    return answer.startsWith('s');
+  } catch(e){
+    console.warn('Allergen detection failed:', e);
+    return false;
+  }
 }
 
 function selectIng(name){
@@ -1482,7 +1508,7 @@ function renderDDTItems(){
     </div>`).join('');
 }
 
-function applyBatchDDT(){
+async function applyBatchDDT(){
   const fornitore = (document.getElementById('ddt-fornitore').value||'').toUpperCase();
   const ddt       = (document.getElementById('ddt-numero').value||'').toUpperCase();
   const dataDDT   = document.getElementById('ddt-data').value||'';
@@ -1494,7 +1520,8 @@ function applyBatchDDT(){
 
   window.ddtItems.forEach(item=>{
     if(item.isNew && !db.ingredients.find(i=>i.name===item.name)){
-      db.ingredients.push({name:item.name, isAnimal:true});
+      const isAllerg = await detectAllergen(item.name);
+      db.ingredients.push({name:item.name, isAnimal:true, isAllergen:isAllerg});
     }
     if(!db.animalData[dept][item.name]) db.animalData[dept][item.name]={};
     const entry = db.animalData[dept][item.name];
@@ -1515,17 +1542,18 @@ function applyBatchDDT(){
 
 function populateDDTProductList(){ /* legacy */ }
 
-function addNewIngredientFromPage(){
+async function addNewIngredientFromPage(){
   const nameEl = document.getElementById('newIngName');
   const name = nameEl?.value?.trim().toUpperCase();
   if(!name){ toast('Inserisci il nome del prodotto','warn'); return; }
   if(db.ingredients.find(i=>i.name.toUpperCase()===name)){
     toast(`"${name}" è già nel database`,'warn'); return;
   }
-  db.ingredients.push({name, isAnimal:true});
+  const isAllerg = await detectAllergen(name);
+  db.ingredients.push({name, isAnimal:true, isAllergen:isAllerg});
   saveDB();
   nameEl.value='';
-  toast(`"${name}" aggiunto!`);
+  toast(`"${name}" aggiunto!${isAllerg?' (allergene EU rilevato)':''}`);
   renderIngredientsPage();
 }
 
@@ -1660,7 +1688,9 @@ function buildLabelHTML(r){
 
   // Ingredients list (non-animal names)
   const ingsLine = r.ingredients.length
-    ? r.ingredients.join(', ')
+    ? r.ingredients.map(i => isAllergen(i)
+        ? `<strong style="font-weight:700;text-decoration:underline">${i}</strong>`
+        : i).join(', ')
     : '';
 
   // Animal traceability

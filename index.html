@@ -75,15 +75,15 @@ input[type=text],input[type=number],textarea{text-transform:uppercase}
 .lbl-consume{font-size:11px;color:#111;margin-bottom:2px}
 .lbl-consume strong{font-weight:700}
 .lbl-temp-line{font-size:11px;color:#111;margin-bottom:2px;font-weight:600}
-.lbl-lotto{font-size:11px;color:#111;margin-bottom:4px}
+.lbl-meta-row{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:2px}
+.lbl-lotto{font-size:10px;color:#111}
 .lbl-lotto strong{font-weight:700}
-/* Quantity */
-.lbl-qty-label{font-size:11px;font-weight:700;color:#111;margin-bottom:1px}
-.lbl-qty-val{font-size:18px;font-weight:700;color:#111;line-height:1.2}
+.lbl-qty-inline{font-size:10px;font-weight:700;color:#111;text-align:right}
+.lbl-qty-inline span{font-size:15px;font-weight:800;display:block;line-height:1.1}
 /* Animal traceability */
 .lbl-animal-block{margin-bottom:3px}
-.lbl-animal-title{font-size:8px;text-transform:uppercase;letter-spacing:.5px;color:#888;font-weight:700;margin-bottom:1px}
-.lbl-animal-row{font-size:9px;color:#111;font-weight:500;text-transform:uppercase;line-height:1.3}
+.lbl-animal-title{font-size:9px;text-transform:uppercase;letter-spacing:.3px;color:#111;font-weight:700;margin-bottom:1px}
+.lbl-animal-row{font-size:8px;color:#444;font-weight:400;text-transform:uppercase;line-height:1.4}
 .lbl-divider{border:none;border-top:1px solid #e0e0e0;margin:3px 0}
 .lbl-note{font-size:9px;color:#555;text-transform:uppercase;margin-top:2px;font-style:italic;line-height:1.3}
 /* Footer: address */
@@ -1672,13 +1672,15 @@ function buildLabelHTML(r){
       if(!d.fornitore && !d.ddt && !d.lotto) return;
       animalHTML += `<div class="lbl-animal-block">
         <div class="lbl-animal-title">${ing}</div>
-        <div class="lbl-animal-row">${d.fornitore?`Forn: ${d.fornitore} `:'' }${d.ddt?`DDT: ${d.ddt}`:'' }${d.dataDDT?` (${formatDate(d.dataDDT)})`:'' }${d.lotto?` — Lotto: ${d.lotto}`:''}</div>
+        <div class="lbl-animal-row">${d.fornitore?`${d.fornitore}`:'' }${d.ddt?` — DDT: ${d.ddt}`:'' }${d.dataDDT?` (${formatDate(d.dataDDT)})`:'' }${d.lotto?` — Lotto: ${d.lotto}`:''}</div>
       </div>`;
     });
   }
 
   const noteHTML = r.note ? `<div class="lbl-note">${r.note}</div>` : '';
-  const qtyHTML = (r.qty) ? `<div class="lbl-qty-label">Quantità:</div><div class="lbl-qty-val">${r.qty}${r.qtyUnit||''}</div>` : '';
+  const qtyHTML = r.qty
+    ? `<div class="lbl-qty-inline">Quantità:<span>${r.qty} ${r.qtyUnit||''}</span></div>`
+    : '';
   const logoHTML = LOGO_DATA ? `<img class="lbl-logo" src="${LOGO_DATA}" alt="Contraste">` : '';
 
   return `<div class="label-120x76">
@@ -1689,8 +1691,10 @@ function buildLabelHTML(r){
     ${ingsLine ? `<div class="lbl-ings">${ingsLine}</div>` : ''}
     <div class="lbl-consume"><strong>Da consumare entro:</strong> ${exp?formatDate(exp):'—'}</div>
     <div class="lbl-temp-line">${tempStr}</div>
-    <div class="lbl-lotto"><strong>Lotto:</strong> ${lotto}</div>
-    ${qtyHTML}
+    <div class="lbl-meta-row">
+      <div class="lbl-lotto"><strong>Lotto:</strong> ${lotto}</div>
+      ${qtyHTML}
+    </div>
     ${animalHTML}
     ${noteHTML}
     <div class="lbl-footer">

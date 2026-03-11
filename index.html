@@ -54,34 +54,53 @@ input[type=text],input[type=number],textarea{text-transform:uppercase}
 
 /* LABEL — exact 120x76mm at 96dpi */
 .label-120x76{
-  width:453px; height:287px;   /* 120mm × 76mm @ 96dpi */
+  width:453px; height:287px;
   background:#fff;
   border:1px solid #ccc;
   border-radius:4px;
-  padding:14px 16px;
+  padding:10px 14px 8px;
   box-shadow:0 2px 12px rgba(0,0,0,.12);
-  display:flex; flex-direction:column; gap:0;
+  display:flex; flex-direction:column;
   font-family:'Outfit',sans-serif;
   overflow:hidden; position:relative;
   box-sizing:border-box;
 }
-.lbl-name{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:700;color:#111;line-height:1.15;text-transform:uppercase;border-bottom:2px solid #111;padding-bottom:6px;margin-bottom:7px}
-.lbl-row{display:flex;align-items:baseline;gap:6px;margin-bottom:4px;font-size:11px}
-.lbl-row-key{color:#666;font-weight:600;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;min-width:70px;font-size:10px}
-.lbl-row-val{color:#111;font-weight:500;font-size:11px;text-transform:uppercase}
-.lbl-row-val.bold{font-weight:700;font-size:12px}
-.lbl-dates{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;padding:6px 8px;background:#f5f5f5;border-radius:4px}
+/* Header row: name left, logo right */
+.lbl-header{display:flex;align-items:flex-start;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:5px;margin-bottom:5px}
+.lbl-name{font-family:'Outfit',sans-serif;font-size:17px;font-weight:800;color:#111;line-height:1.15;text-transform:uppercase;flex:1;padding-right:8px}
+.lbl-logo{height:28px;width:auto;object-fit:contain;flex-shrink:0}
+/* Ingredients line */
+.lbl-ings{font-size:10px;color:#333;margin-bottom:5px;border-bottom:1px solid #ddd;padding-bottom:4px;line-height:1.3}
+/* Dates */
+.lbl-consume{font-size:11px;color:#111;margin-bottom:2px}
+.lbl-consume strong{font-weight:700}
+.lbl-temp-line{font-size:11px;color:#111;margin-bottom:2px;font-weight:600}
+.lbl-lotto{font-size:11px;color:#111;margin-bottom:4px}
+.lbl-lotto strong{font-weight:700}
+/* Quantity */
+.lbl-qty-label{font-size:11px;font-weight:700;color:#111;margin-bottom:1px}
+.lbl-qty-val{font-size:18px;font-weight:700;color:#111;line-height:1.2}
+/* Animal traceability */
+.lbl-animal-block{margin-bottom:3px}
+.lbl-animal-title{font-size:8px;text-transform:uppercase;letter-spacing:.5px;color:#888;font-weight:700;margin-bottom:1px}
+.lbl-animal-row{font-size:9px;color:#111;font-weight:500;text-transform:uppercase;line-height:1.3}
+.lbl-divider{border:none;border-top:1px solid #e0e0e0;margin:3px 0}
+.lbl-note{font-size:9px;color:#555;text-transform:uppercase;margin-top:2px;font-style:italic;line-height:1.3}
+/* Footer: address */
+.lbl-footer{margin-top:auto;padding-top:4px;text-align:center;border-top:1px solid #ddd}
+.lbl-footer-name{font-size:9px;font-weight:700;color:#111}
+.lbl-footer-addr{font-size:8px;color:#555}
+/* Legacy kept for compatibility */
+.lbl-row{display:flex;align-items:baseline;gap:6px;margin-bottom:2px;font-size:10px}
+.lbl-row-key{color:#666;font-weight:600;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;min-width:60px;font-size:9px}
+.lbl-row-val{color:#111;font-weight:500;font-size:10px;text-transform:uppercase}
+.lbl-dates{display:none}
 .lbl-date-block{display:flex;flex-direction:column;gap:1px}
 .lbl-date-key{font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:#888;font-weight:600}
 .lbl-date-val{font-size:13px;font-weight:700;color:#111}
 .lbl-date-val.scad{color:#c0392b}
-.lbl-divider{border:none;border-top:1px solid #e0e0e0;margin:5px 0}
-.lbl-animal-block{margin-bottom:4px}
-.lbl-animal-title{font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:#888;font-weight:600;margin-bottom:2px}
-.lbl-animal-row{font-size:10px;color:#111;font-weight:500;text-transform:uppercase;line-height:1.4}
-.lbl-temp{position:absolute;top:12px;right:14px;font-size:10px;font-weight:700;background:#111;color:#fff;padding:3px 8px;border-radius:4px;text-transform:uppercase}
-.lbl-dept{position:absolute;bottom:10px;right:14px;font-size:9px;color:#aaa;text-transform:uppercase;letter-spacing:.5px}
-.lbl-note{font-size:9px;color:#555;text-transform:uppercase;margin-top:2px;font-style:italic;line-height:1.3}
+.lbl-temp{display:none}
+.lbl-dept{display:none}
 
 /* PRINT MEDIA — one label per page, exact 120x76mm */
 @media print{
@@ -640,6 +659,14 @@ function normalizeDB(d){
       }
     });
   }
+  // Assign lotto and qty to existing recipes that lack them
+  ['lab','cucina'].forEach(dk=>{
+    if(d.recipes && d.recipes[dk]) d.recipes[dk].forEach(r=>{
+      if(!r.lotto) r.lotto=genLotto();
+      if(r.qty===undefined) r.qty='';
+      if(!r.qtyUnit) r.qtyUnit='kg';
+    });
+  });
   return d;
 }
 
@@ -672,6 +699,14 @@ let resolveCopy   = null;
 // ── UTILS ────────────────────────────────────────────────
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2) }
 function today(){ return new Date().toISOString().split('T')[0] }
+function genLotto(){
+  const n=new Date();
+  const dd=String(n.getDate()).padStart(2,'0');
+  const mm=String(n.getMonth()+1).padStart(2,'0');
+  const yyyy=n.getFullYear();
+  const rand=String(Math.floor(10000+Math.random()*90000));
+  return `${yyyy}${mm}${dd}-${rand}`;
+}
 function isAnimal(n){ const f=db.ingredients.find(i=>i.name.toLowerCase()===n.toLowerCase()); return f?f.isAnimal:false }
 
 function calcExpiry(dataProd, giorni){
@@ -746,12 +781,12 @@ function renderSidebar(){
 
 // ── RECIPE CRUD ──────────────────────────────────────────
 function newRecipe(){
-  const r={id:uid(),name:'',ingredients:[],animalSources:{},dataProd:today(),giorniScadenza:3,temp:'+3',note:''};
+  const r={id:uid(),name:'',ingredients:[],animalSources:{},dataProd:today(),giorniScadenza:3,temp:'+3',note:'',lotto:genLotto(),qty:'',qtyUnit:'kg'};
   db.recipes[dept].unshift(r); saveDB();
   curId=r.id; renderSidebar(); renderForm(r);
 }
 function newSimpleRecipe(){
-  const r={id:uid(),name:'',dataProd:today(),giorniScadenza:3,temp:'+3',note:'',simple:true};
+  const r={id:uid(),name:'',dataProd:today(),giorniScadenza:3,temp:'+3',note:'',simple:true,lotto:genLotto(),qty:'',qtyUnit:'kg'};
   db.recipes[dept].unshift(r); saveDB();
   curId=r.id; renderSidebar(); renderSimpleForm(r);
 }
@@ -794,6 +829,17 @@ function renderSimpleForm(r){
       </div>
       <div class="field"><label>Note</label>
         <textarea id="f-note" placeholder="ISTRUZIONI DI CONSERVAZIONE, NOTE SPECIALI…" onchange="collectSimple()" style="text-transform:uppercase">${r.note||''}</textarea></div>
+      <div style="display:grid;grid-template-columns:1fr 120px;gap:14px;margin-top:14px">
+        <div class="field" style="margin-bottom:0"><label>Quantità</label>
+          <input type="text" id="f-qty" value="${r.qty||''}" placeholder="Es. 500" oninput="collectSimple()"></div>
+        <div class="field" style="margin-bottom:0"><label>Unità</label>
+          <select id="f-qtyunit" onchange="collectSimple()">
+            <option value="pz"  ${(r.qtyUnit||'kg')==='pz' ?'selected':''}>pz</option>
+            <option value="g"   ${(r.qtyUnit||'kg')==='g'  ?'selected':''}>g</option>
+            <option value="kg"  ${(r.qtyUnit||'kg')==='kg' ?'selected':''}>kg</option>
+            <option value="l"   ${(r.qtyUnit||'kg')==='l'  ?'selected':''}>l</option>
+          </select></div>
+      </div>
     </div>
   </div>`;
 }
@@ -893,6 +939,8 @@ function collect(){
   r.giorniScadenza=parseInt(document.getElementById('f-scad')?.value)||r.giorniScadenza;
   r.temp=document.getElementById('f-temp')?.value||r.temp;
   r.note=(document.getElementById('f-note')?.value||'').toUpperCase();
+  r.qty=(document.getElementById('f-qty')?.value||'').toUpperCase();
+  r.qtyUnit=document.getElementById('f-qtyunit')?.value||r.qtyUnit||'kg';
 
   // Collect all animal data fields from DOM directly into db.animalData
   const animalIngs = r.ingredients.filter(i=>isAnimal(i));
@@ -976,7 +1024,6 @@ function renderForm(r){
         <div class="dept-badge ${dept}">${isLab?'Laboratorio':'Cucina'}</div>
       </div>
       <div class="btn-row">
-        <button class="btn-sec btn-copy" onclick="copyToOther()">⎘ Copia in ${label(o)}</button>
         <button class="btn-sec btn-del" onclick="deleteRecipe()" title="Elimina ricetta"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
         <button class="btn-sec" style="border-color:#1d4e89;color:#1d4e89" onclick="openPrintModal()">️ Stampa</button>
         <button class="btn-save" onclick="saveRecipe()"> Salva</button>
@@ -999,6 +1046,17 @@ function renderForm(r){
             <option value="-18" ${r.temp==='-18'?'selected':''}> -18°C — Surgelato</option>
             <option value="+3"  ${r.temp==='+3'?'selected':''}>+3°C — Refrigerato</option>
             <option value="amb" ${r.temp==='amb'?'selected':''}>️ Temperatura Ambiente</option>
+          </select></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 120px;gap:14px;margin-bottom:14px">
+        <div class="field" style="margin-bottom:0"><label>Quantità</label>
+          <input type="text" id="f-qty" value="${r.qty||''}" placeholder="Es. 500" oninput="collect()"></div>
+        <div class="field" style="margin-bottom:0"><label>Unità</label>
+          <select id="f-qtyunit" onchange="collect()">
+            <option value="pz"  ${(r.qtyUnit||'kg')==='pz' ?'selected':''}>pz</option>
+            <option value="g"   ${(r.qtyUnit||'kg')==='g'  ?'selected':''}>g</option>
+            <option value="kg"  ${(r.qtyUnit||'kg')==='kg' ?'selected':''}>kg</option>
+            <option value="l"   ${(r.qtyUnit||'kg')==='l'  ?'selected':''}>l</option>
           </select></div>
       </div>
       <div class="field"><label>Note</label>
@@ -1594,10 +1652,16 @@ function updateExpiryBadge(){
 // ── PRINT ────────────────────────────────────────────────
 function buildLabelHTML(r){
   const exp = calcExpiry(r.dataProd, r.giorniScadenza);
-  const tempStr = r.temp==='-18'?'-18°C':r.temp==='+3'?'+3°C':'Amb.';
-  const deptStr = dept==='lab'?'LABORATORIO':'CUCINA';
+  const tempStr = r.temp==='-18'?'-18°C':r.temp==='+3'?'+3°C':'Temp. Ambiente';
+  const addr = dept==='lab' ? ADDR_LAB : ADDR_CUC;
+  const lotto = r.lotto || genLotto();
 
-  // Animal products with data
+  // Ingredients list (non-animal names)
+  const ingsLine = r.ingredients.length
+    ? r.ingredients.join(', ')
+    : '';
+
+  // Animal traceability
   const animalIngs = r.ingredients.filter(i=>isAnimal(i));
   let animalHTML = '';
   if(animalIngs.length){
@@ -1607,33 +1671,32 @@ function buildLabelHTML(r){
       const d = db.animalData[src]?.[ing] || {};
       if(!d.fornitore && !d.ddt && !d.lotto) return;
       animalHTML += `<div class="lbl-animal-block">
-        <div class="lbl-animal-title"> ${ing}</div>
-        <div class="lbl-animal-row">
-          ${d.fornitore?`FORN: ${d.fornitore}  `:'' }${d.ddt?`DDT: ${d.ddt}`:'' }${d.dataDDT?`  (${formatDate(d.dataDDT)})`:'' }
-          ${d.lotto?`<br>LOTTO/SCAD: ${d.lotto}`:''}
-        </div>
+        <div class="lbl-animal-title">${ing}</div>
+        <div class="lbl-animal-row">${d.fornitore?`Forn: ${d.fornitore} `:'' }${d.ddt?`DDT: ${d.ddt}`:'' }${d.dataDDT?` (${formatDate(d.dataDDT)})`:'' }${d.lotto?` — Lotto: ${d.lotto}`:''}</div>
       </div>`;
     });
   }
 
-  const noteHTML = r.note ? `<hr class="lbl-divider"><div class="lbl-note">${r.note}</div>` : '';
+  const noteHTML = r.note ? `<div class="lbl-note">${r.note}</div>` : '';
+  const qtyHTML = (r.qty) ? `<div class="lbl-qty-label">Quantità:</div><div class="lbl-qty-val">${r.qty}${r.qtyUnit||''}</div>` : '';
+  const logoHTML = LOGO_DATA ? `<img class="lbl-logo" src="${LOGO_DATA}" alt="Contraste">` : '';
 
   return `<div class="label-120x76">
-    <div class="lbl-temp">${tempStr}</div>
-    <div class="lbl-name">${r.name||'PREPARAZIONE'}</div>
-    <div class="lbl-dates">
-      <div class="lbl-date-block">
-        <div class="lbl-date-key">Produzione</div>
-        <div class="lbl-date-val">${formatDate(r.dataProd)||'—'}</div>
-      </div>
-      <div class="lbl-date-block">
-        <div class="lbl-date-key">Scadenza</div>
-        <div class="lbl-date-val scad">${exp?formatDate(exp):'—'}</div>
-      </div>
+    <div class="lbl-header">
+      <div class="lbl-name">${r.name||'PREPARAZIONE'}</div>
+      ${logoHTML}
     </div>
+    ${ingsLine ? `<div class="lbl-ings">${ingsLine}</div>` : ''}
+    <div class="lbl-consume"><strong>Da consumare entro:</strong> ${exp?formatDate(exp):'—'}</div>
+    <div class="lbl-temp-line">${tempStr}</div>
+    <div class="lbl-lotto"><strong>Lotto:</strong> ${lotto}</div>
+    ${qtyHTML}
     ${animalHTML}
     ${noteHTML}
-    <div class="lbl-dept">${deptStr}</div>
+    <div class="lbl-footer">
+      <div class="lbl-footer-name">${addr.split(',')[0]}</div>
+      <div class="lbl-footer-addr">${addr.split(',').slice(1).join(',').trim()}</div>
+    </div>
   </div>`;
 }
 
@@ -1668,6 +1731,13 @@ function doPrint(){
 document.addEventListener('click', e=>{
   if(e.target.id==='printOverlay') closePrintModal();
 });
+
+// ── LOGO DATA ────────────────────────────────────────────
+const LOGO_DATA = 'data:image/png;base64,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';
+
+// ── ADDRESSES ────────────────────────────────────────────
+const ADDR_LAB = 'Polo Sur Srl, Via G. Sbodio 30/e — 20134 Milano';
+const ADDR_CUC = 'Polo Sur Srl, Via Giuseppe Meda 2 — 20136 Milano';
 
 // ── INIT ─────────────────────────────────────────────────
 initDB();

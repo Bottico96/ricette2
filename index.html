@@ -1518,7 +1518,7 @@ async function applyBatchDDT(){
 
   if(!db.animalData[dept]) db.animalData[dept]={};
 
-  window.ddtItems.forEach(item=>{
+  for(const item of window.ddtItems){
     if(item.isNew && !db.ingredients.find(i=>i.name===item.name)){
       const isAllerg = await detectAllergen(item.name);
       db.ingredients.push({name:item.name, isAnimal:true, isAllergen:isAllerg});
@@ -1530,7 +1530,7 @@ async function applyBatchDDT(){
     if(dataDDT)   entry.dataDDT   = dataDDT;
     if(item.lotto) entry.lotto    = item.lotto;
     entry._updated = new Date().toLocaleString('it-IT');
-  });
+  }
 
   saveDB();
   toast(`DDT salvato per ${window.ddtItems.length} prodott${window.ddtItems.length===1?'o':'i'}!`);

@@ -633,7 +633,7 @@ function startRealtimeSync(){
 
 function normalizeDB(d){
   // Normalize all text fields to UPPERCASE
-  if(d.ingredients) d.ingredients = d.ingredients.map(i=>({...i, name: i.name.toUpperCase(), isAllergen: i.isAllergen||false}));
+  if(d.ingredients) d.ingredients = d.ingredients.map(i=>({...i, name: i.name.toUpperCase(), isAllergen: detectAllergen(i.name)}));
   if(d.recipes){
     ['lab','cucina'].forEach(dept=>{
       if(d.recipes[dept]) d.recipes[dept] = d.recipes[dept].map(r=>({
@@ -1263,49 +1263,64 @@ async function promptNewIng(name){
 }
 
 // 14 allergeni EU - rilevamento locale per parole chiave
+// 14 allergeni EU — lista di parole chiave per rilevamento
 const ALLERGEN_KEYWORDS = [
   // Glutine
   'farina','frumento','grano','orzo','segale','avena','farro','kamut','spelta','triticale',
-  'semola','crusca','glutine','pasta','pane','pangrattato','panko','crackers','biscotto',
+  'semola','crusca','glutine','pasta','pane','pangrattato','panko','cracker','biscotto','cous cous',
   // Crostacei
-  'gambero','gamberi','granchio','aragosta','astice','scampo','scampi','mazzancolla',
-  'crostaceo','crostacei','cicala',
+  'gambero','gamberi','granchio','aragosta','astice','astici','scampo','scampi','mazzancolla',
+  'crostaceo','crostacei','cicala','cicale','canocchia','canocchie','granseola',
   // Uova
-  'uovo','uova','albume','tuorlo','maionese',
+  'uovo','uova','albume','tuorlo','maionese','uovo di',
   // Pesce
   'acciuga','acciughe','alice','alici','baccala','branzino','cefalo','merluzzo','orata',
   'pesce','salmone','sardina','sardine','sogliola','tonno','trota','sgombro','anguilla',
-  'caviale','worcester','worcestershire',
+  'caviale','worcester','worcestershire','dentice','rombo','spigola','cernia','nasello',
+  'halibut','platessa','palombo','aguglia','barracuda','luccio','storione',
   // Arachidi
-  'arachide','arachidi','burro di arachidi',
+  'arachide','arachidi',
   // Soia
   'soia','tofu','tempeh','edamame','miso','tamari',
   // Latte
   'latte','burro','panna','formaggio','mozzarella','grana','parmigiano','pecorino',
   'gorgonzola','ricotta','mascarpone','brie','camembert','gruviera','fontina','asiago',
-  'provolone','scamorza','caciotta','yogurt','kefir','caseina','lattosio','siero',
-  'latte intero','latte parzialmente','latte scremato',
+  'provolone','scamorza','caciotta','yogurt','kefir','caseina','lattosio','siero di latte',
+  'taleggio','emmental','gouda','edam','stilton','roquefort','stracchino','crescenza',
   // Frutta a guscio
   'mandorla','mandorle','noce','noci','nocciola','nocciole','pistacchio','pistacchi',
   'anacardo','anacardi','pecan','macadamia','pinolo','pinoli','castagna','castagne',
+  'noce di cocco','noce brasiliana','noce del brasile',
   // Sedano
-  'sedano','sedanorapa','semi di sedano',
+  'sedano','sedano rapa','sedanorapa','semi di sedano',
   // Senape
   'senape','mostarda',
   // Sesamo
   'sesamo','tahini','tahina',
-  // Solfiti/anidride solforosa
-  'solfito','solfiti','anidride solforosa','vino','aceto di vino',
+  // Solfiti
+  'solfito','solfiti','anidride solforosa',
   // Lupini
-  'lupino','lupini','farina di lupino',
+  'lupino','lupini',
   // Molluschi
   'cozza','cozze','vongola','vongole','ostrica','ostriche','polpo','calamaro','seppia',
-  'lumaca','lumache','mollusco','molluschi'
+  'lumaca','lumache','mollusco','molluschi','cannolicchio','fasolaro','tellina','patella',
+  'canestrello','capasanta','cannolicchi'
 ];
 
 function detectAllergen(name){
-  const n = name.toLowerCase();
-  return ALLERGEN_KEYWORDS.some(kw => n.includes(kw) || kw.includes(n.replace(/\s+/g,' ').trim()));
+  const n = name.toLowerCase().trim();
+  // Check if any keyword matches exactly or is contained in the ingredient name
+  return ALLERGEN_KEYWORDS.some(kw => {
+    const k = kw.toLowerCase();
+    // Exact match
+    if(n === k) return true;
+    // Ingredient name contains the keyword as a whole word
+    const re = new RegExp('(^|\\s|\\b)' + k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '(\\s|$|\\b)');
+    if(re.test(n)) return true;
+    // Keyword contains the ingredient name (e.g. ingredient="sedano", kw="sedano rapa")
+    if(k.startsWith(n) || k === n) return true;
+    return false;
+  });
 }
 
 function selectIng(name){

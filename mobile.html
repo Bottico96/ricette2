@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Ricevimento Merci</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --lab:#1a3a5c; --lab-lt:#edf2f7; --lab-bd:#b0c8e4; --lab-bg:#e8f0f8;
+  --cuc:#8b3a1e; --cuc-lt:#fdf0eb; --cuc-bd:#e8b89a; --cuc-bg:#fdf4ef;
+  --bg:#f0f0ed; --surface:#fff; --border:#e2e0db;
+  --text:#111110; --text2:#555350; --text3:#999793;
+  --accent:#1e5c3a;
+  --dc:var(--lab); --dl:var(--lab-lt); --db:var(--lab-bd); --dbg:var(--lab-bg);
+  --nav-bg:#0f2135;
+}
+body.cuc{
+  --dc:var(--cuc); --dl:var(--cuc-lt); --db:var(--cuc-bd); --dbg:var(--cuc-bg);
+  --nav-bg:#3d1a0a;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Outfit',sans-serif;background:var(--dbg);min-height:100vh;transition:background .3s}
+input[type=text],input[type=date]{text-transform:uppercase}
+input[type=text]:focus,input[type=date]:focus,select:focus{outline:none;border-color:var(--dc)!important;background:#fff!important}
+
+.nav{background:var(--nav-bg);padding:0 16px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;transition:background .3s}
+.nav-title{font-size:16px;font-weight:700;color:#fff}
+.nav-title em{font-weight:300;font-style:normal;opacity:.55;font-size:13px}
+.dot{width:8px;height:8px;border-radius:50%;background:#555;transition:background .3s;flex-shrink:0}
+.dot.ok{background:#2ecc71}.dot.err{background:#e74c3c}
+.dot.spin{background:#f39c12;animation:blink 1s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+.dept-wrap{background:var(--nav-bg);padding:10px 16px 14px;transition:background .3s}
+.dept-row{display:flex;gap:0;background:rgba(255,255,255,.1);border-radius:9px;padding:3px}
+.dept-row button{flex:1;padding:10px;border:none;border-radius:7px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:rgba(255,255,255,.4);transition:all .2s;letter-spacing:.2px}
+.dept-row button.on{background:var(--dc);color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+
+.tabs{display:flex;margin:12px 16px 0;background:var(--surface);border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.tab{flex:1;padding:12px;border:none;background:transparent;font-family:'Outfit',sans-serif;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.4px;text-transform:uppercase;color:var(--text3);transition:all .2s}
+.tab.on{background:var(--dc);color:#fff}
+
+.content{padding:12px 16px 40px}
+
+.card{background:var(--surface);border-radius:12px;margin-bottom:12px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.07)}
+.ch{padding:12px 14px;background:var(--dl);border-bottom:1px solid var(--db);display:flex;align-items:center;justify-content:space-between;transition:background .3s,border .3s}
+.ch-name{font-size:14px;font-weight:700;color:var(--dc);transition:color .3s}
+.ch-ts{font-size:10px;color:var(--text3);text-align:right;line-height:1.4}
+.cb{padding:14px}
+
+.f{margin-bottom:10px}
+.f label{display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:4px}
+.f input,.f select{width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Outfit',sans-serif;font-size:14px;background:var(--bg);color:var(--text);transition:border .15s,background .15s}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+.btn-save{width:100%;padding:14px;background:var(--dc);color:#fff;border:none;border-radius:9px;font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;cursor:pointer;margin-top:4px;transition:opacity .15s,background .3s;-webkit-appearance:none}
+.btn-save:active{opacity:.75}
+
+.sb{display:flex;align-items:center;gap:8px;background:var(--surface);border-radius:10px;padding:10px 14px;margin-bottom:10px;border:1px solid var(--border)}
+.sb input{flex:1;border:none;background:transparent;font-family:'Outfit',sans-serif;font-size:14px;color:var(--text)}
+.sb input::placeholder{color:var(--text3)}
+.sb input:focus{outline:none}
+
+/* DDT */
+.ddt-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin:14px 0 8px}
+.ddt-row{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:9px;margin-bottom:8px}
+.ddt-name{font-weight:700;font-size:13px;flex:1;min-width:0}
+.ddt-lotto-in{flex:1.2;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-family:Outfit,sans-serif;font-size:12px;background:#fff;text-transform:uppercase;min-width:0}
+.ddt-del{background:none;border:none;color:var(--text3);font-size:24px;cursor:pointer;padding:0 2px;line-height:1;flex-shrink:0}
+.new-b{font-size:9px;background:#eaf4ef;color:#1e5c3a;padding:1px 6px;border-radius:20px;font-weight:700;margin-left:4px;vertical-align:middle}
+
+.add-wrap{position:relative;margin-bottom:4px}
+.add-row{display:flex;gap:8px}
+.add-row .ai{flex:1;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Outfit,sans-serif;font-size:14px;background:var(--bg);color:var(--text);text-transform:uppercase}
+.add-row .al{flex:1;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Outfit,sans-serif;font-size:13px;background:var(--bg);color:var(--text);text-transform:uppercase}
+.add-row .ap{padding:11px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-family:Outfit,sans-serif;font-size:14px;font-weight:700;cursor:pointer;-webkit-appearance:none}
+.ac{position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--db);border-radius:10px;z-index:50;overflow:hidden;margin-top:4px;box-shadow:0 4px 20px rgba(0,0,0,.13);display:none}
+.ac-i{padding:12px 14px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid var(--border)}
+.ac-i:last-child{border:none}
+.ac-i:active{background:var(--dl)}
+.badge{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;white-space:nowrap}
+.b-a{background:#fdf2f2;color:#b03030;border:1px solid #e8b8b8}
+.b-n{background:#eaf4ef;color:#1e5c3a;border:1px solid #8ecfab}
+
+.empty{text-align:center;padding:28px 16px;color:var(--text3);font-size:13px;font-style:italic}
+
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#111;color:#fff;padding:11px 22px;border-radius:24px;font-size:13px;font-weight:500;opacity:0;transition:all .25s;z-index:999;pointer-events:none;max-width:88vw;text-align:center;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.warn{background:#c0392b}.toast.ok{background:var(--dc)}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-title">Cucina <em>& Lab</em></div>
+  <div id="dot" class="dot spin"></div>
+</nav>
+<div class="dept-wrap">
+  <div class="dept-row">
+    <button id="bLab" class="on" onclick="switchDept('lab')">Laboratorio</button>
+    <button id="bCuc" onclick="switchDept('cuc')">Cucina</button>
+  </div>
+</div>
+
+<div class="tabs">
+  <button id="tIng" class="tab on" onclick="switchTab('ing')">Ingrediente</button>
+  <button id="tDDT" class="tab" onclick="switchTab('ddt')">DDT Batch</button>
+</div>
+
+<div class="content">
+
+  <!-- INGREDIENTE SINGOLO -->
+  <div id="pIng">
+    <div class="sb">
+      <input type="text" placeholder="Cerca prodotto…" oninput="filterIngs(this.value)">
+    </div>
+    <div id="ingList"></div>
+  </div>
+
+  <!-- DDT BATCH -->
+  <div id="pDDT" style="display:none">
+    <div class="card">
+      <div class="ch"><div class="ch-name">Dati comuni DDT</div></div>
+      <div class="cb">
+        <div class="g2">
+          <div class="f"><label>Fornitore</label><input type="text" id="dForn" placeholder="Es. Carena"></div>
+          <div class="f"><label>N° DDT</label><input type="text" id="dNum" placeholder="346"></div>
+        </div>
+        <div class="f"><label>Data DDT</label><input type="date" id="dDate"></div>
+      </div>
+    </div>
+
+    <div class="ddt-lbl">Prodotti del DDT</div>
+    <div id="ddtList"></div>
+
+    <div class="add-wrap">
+      <div class="add-row">
+        <input type="text" id="dIng" class="ai" placeholder="Prodotto…" oninput="onDDTInput(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();addDItem()}" autocomplete="off">
+        <input type="text" id="dLotto" class="al" placeholder="Lotto…" onkeydown="if(event.key==='Enter'){event.preventDefault();addDItem()}">
+        <button class="ap" onclick="addDItem()">+</button>
+      </div>
+      <div id="dAc" class="ac"></div>
+    </div>
+
+    <button class="btn-save" style="margin-top:14px" onclick="saveDDT()">Salva DDT</button>
+  </div>
+
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const cfg = {
+  apiKey:"AIzaSyD7vZlwcg1EgZhBucjz7WoiSMTIs6ouXRQ",
+  authDomain:"ricettecontraste.firebaseapp.com",
+  projectId:"ricettecontraste",
+  storageBucket:"ricettecontraste.firebasestorage.app",
+  messagingSenderId:"861699797515",
+  appId:"1:861699797515:web:8fc4e58e527609cc5d8d0e"
+};
+const DB_DOC = doc(getFirestore(initializeApp(cfg)), 'ristorante', 'database');
+
+let db={ingredients:[],animalData:{lab:{},cucina:{}},recipes:{lab:[],cucina:[]}};
+let dept='lab', tab='ing', ddtItems=[], _t=null, _last=null;
+
+const dot=()=>document.getElementById('dot');
+const setDot=s=>{dot().className='dot '+s};
+
+async function saveDB(){
+  if(_t) clearTimeout(_t);
+  setDot('spin');
+  _t=setTimeout(async()=>{
+    const s=JSON.stringify(db);
+    if(s===_last){setDot('ok');return;}
+    try{ await setDoc(DB_DOC,{data:s}); _last=s; setDot('ok'); }
+    catch(e){ setDot('err'); }
+  },600);
+}
+
+async function init(){
+  setDot('spin');
+  try{
+    const s=await getDoc(DB_DOC);
+    if(s&&s.exists()){ db=JSON.parse(s.data().data); fixDB(); }
+    setDot('ok');
+  }catch(e){ setDot('err'); }
+  onSnapshot(DB_DOC,s=>{
+    if(!s.exists()) return;
+    try{
+      const r=JSON.parse(s.data().data);
+      if(JSON.stringify(r)===_last) return;
+      db=r; fixDB(); renderIngList();
+    }catch(e){}
+  });
+  renderIngList();
+}
+
+function fixDB(){
+  if(!db.animalData) db.animalData={};
+  if(!db.animalData.lab) db.animalData.lab={};
+  if(!db.animalData.cucina) db.animalData.cucina={};
+  if(!db.ingredients) db.ingredients=[];
+}
+
+let _tT;
+window.toast=function(m,type=''){
+  const t=document.getElementById('toast');
+  t.textContent=m; t.className='toast show'+(type?' '+type:'');
+  clearTimeout(_tT); _tT=setTimeout(()=>{t.className='toast';},2600);
+};
+
+const dbDept=()=>dept==='lab'?'lab':'cucina';
+
+window.switchDept=function(d){
+  dept=d;
+  document.body.className=d==='cuc'?'cuc':'';
+  document.getElementById('bLab').className=d==='lab'?'on':'';
+  document.getElementById('bCuc').className=d==='cuc'?'on':'';
+  colorTabs(); renderIngList();
+  ddtItems=[]; renderDDT();
+};
+
+window.switchTab=function(t){
+  tab=t;
+  document.getElementById('pIng').style.display=t==='ing'?'':'none';
+  document.getElementById('pDDT').style.display=t==='ddt'?'':'none';
+  colorTabs();
+  if(t==='ddt'){ddtItems=[];renderDDT();}
+};
+
+function colorTabs(){
+  const ti=document.getElementById('tIng'), td=document.getElementById('tDDT');
+  ti.className='tab'+(tab==='ing'?' on':'');
+  td.className='tab'+(tab==='ddt'?' on':'');
+}
+
+window.filterIngs=function(q){ renderIngList(q); };
+
+function renderIngList(q=''){
+  const el=document.getElementById('ingList');
+  q=q.toLowerCase().trim();
+  let ings=db.ingredients.filter(i=>i.isAnimal);
+  if(q) ings=ings.filter(i=>i.name.toLowerCase().includes(q));
+  if(!ings.length){ el.innerHTML=`<div class="empty">${q?'Nessun risultato':'Nessun prodotto'}</div>`; return; }
+  el.innerHTML=ings.map(i=>{
+    const d=db.animalData[dbDept()]?.[i.name]||{};
+    const n=i.name.replace(/'/g,"\\'");
+    const ts=d._updated?`<div style="font-size:10px;color:var(--text3);margin-top:8px;text-align:center">Aggiornato: ${d._updated}</div>`:'';
+    return `<div class="card">
+      <div class="ch"><div class="ch-name">${i.name}</div></div>
+      <div class="cb">
+        <div class="g2">
+          <div class="f"><label>Fornitore</label><input type="text" id="f-${i.name}" value="${d.fornitore||''}" placeholder="Carena"></div>
+          <div class="f"><label>N° DDT</label><input type="text" id="d-${i.name}" value="${d.ddt||''}" placeholder="346"></div>
+          <div class="f"><label>Data DDT</label><input type="date" id="dt-${i.name}" value="${d.dataDDT||''}"></div>
+          <div class="f"><label>Lotto / Scad.</label><input type="text" id="l-${i.name}" value="${d.lotto||''}" placeholder="L240315…"></div>
+        </div>
+        <button class="btn-save" onclick="saveIng('${n}')">Salva</button>
+        ${ts}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+window.saveIng=function(name){
+  const dd=dbDept();
+  if(!db.animalData[dd]) db.animalData[dd]={};
+  if(!db.animalData[dd][name]) db.animalData[dd][name]={};
+  const d=db.animalData[dd][name];
+  d.fornitore=(document.getElementById(`f-${name}`)?.value||'').toUpperCase();
+  d.ddt=(document.getElementById(`d-${name}`)?.value||'').toUpperCase();
+  d.dataDDT=document.getElementById(`dt-${name}`)?.value||'';
+  d.lotto=(document.getElementById(`l-${name}`)?.value||'').toUpperCase();
+  d._updated=new Date().toLocaleString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  saveDB(); toast(`"${name}" salvato!`,'ok');
+};
+
+window.onDDTInput=function(val){
+  const ac=document.getElementById('dAc');
+  const v=val.trim().toUpperCase();
+  if(!v){ac.style.display='none';return;}
+  const added=ddtItems.map(i=>i.name);
+  const matches=db.ingredients.filter(i=>i.isAnimal&&i.name.includes(v)&&!added.includes(i.name));
+  const exact=db.ingredients.some(i=>i.name===v);
+  let h=matches.map(i=>`<div class="ac-i" onmousedown="selectD('${i.name.replace(/'/g,"\\'")}')"><span>${i.name}</span><span class="badge b-a">nel DB</span></div>`).join('');
+  if(!exact) h+=`<div class="ac-i" onmousedown="selectD('${v.replace(/'/g,"\\'")}',true)"><span>+ "${v}"</span><span class="badge b-n">nuovo</span></div>`;
+  if(!h){ac.style.display='none';return;}
+  ac.innerHTML=h; ac.style.display='block';
+};
+
+window.selectD=function(name){
+  document.getElementById('dIng').value=name;
+  document.getElementById('dAc').style.display='none';
+  document.getElementById('dLotto').focus();
+};
+
+window.addDItem=function(){
+  const ni=document.getElementById('dIng'), nl=document.getElementById('dLotto');
+  const name=(ni.value||'').trim().toUpperCase();
+  const lotto=(nl.value||'').toUpperCase();
+  if(!name){toast('Inserisci il nome','warn');return;}
+  if(ddtItems.find(i=>i.name===name)){toast('Già aggiunto','warn');return;}
+  const isNew=!db.ingredients.find(i=>i.name===name);
+  ddtItems.push({name,lotto,isNew});
+  ni.value=''; nl.value='';
+  document.getElementById('dAc').style.display='none';
+  renderDDT(); ni.focus();
+};
+
+window.removeDItem=function(name){
+  ddtItems=ddtItems.filter(i=>i.name!==name);
+  renderDDT();
+};
+
+function renderDDT(){
+  const el=document.getElementById('ddtList');
+  if(!ddtItems.length){el.innerHTML='<div class="empty">Nessun prodotto aggiunto</div>';return;}
+  el.innerHTML=ddtItems.map((item,idx)=>`
+    <div class="ddt-row">
+      <span class="ddt-name">${item.name}${item.isNew?'<span class="new-b">NUOVO</span>':''}</span>
+      <input class="ddt-lotto-in" type="text" value="${item.lotto}" placeholder="Lotto…" oninput="ddtItems[${idx}].lotto=this.value.toUpperCase()">
+      <button class="ddt-del" onclick="removeDItem('${item.name.replace(/'/g,"\\'")}')">×</button>
+    </div>`).join('');
+}
+
+window.saveDDT=async function(){
+  const forn=(document.getElementById('dForn').value||'').toUpperCase();
+  const num=(document.getElementById('dNum').value||'').toUpperCase();
+  const date=document.getElementById('dDate').value||'';
+  if(!num&&!forn){toast('Inserisci fornitore o N° DDT','warn');return;}
+  if(!ddtItems.length){toast('Aggiungi almeno un prodotto','warn');return;}
+  const dd=dbDept();
+  if(!db.animalData[dd]) db.animalData[dd]={};
+  for(const item of ddtItems){
+    if(item.isNew&&!db.ingredients.find(i=>i.name===item.name))
+      db.ingredients.push({name:item.name,isAnimal:true,isAllergen:false});
+    if(!db.animalData[dd][item.name]) db.animalData[dd][item.name]={};
+    const e=db.animalData[dd][item.name];
+    if(forn) e.fornitore=forn;
+    if(num)  e.ddt=num;
+    if(date) e.dataDDT=date;
+    if(item.lotto) e.lotto=item.lotto;
+    e._updated=new Date().toLocaleString('it-IT');
+  }
+  await saveDB();
+  toast(`DDT salvato per ${ddtItems.length} prodott${ddtItems.length===1?'o':'i'}!`,'ok');
+  ['dForn','dNum','dDate'].forEach(id=>{document.getElementById(id).value='';});
+  ddtItems=[]; renderDDT();
+};
+
+document.addEventListener('touchstart',e=>{
+  if(!e.target.closest('#dIng')&&!e.target.closest('#dAc'))
+    document.getElementById('dAc').style.display='none';
+},{passive:true});
+
+init();
+</script>
+</body>
+</html>

@@ -646,7 +646,7 @@ function startRealtimeSync(){
 
 function normalizeDB(d){
   // Normalize all text fields to UPPERCASE
-  if(d.ingredients) d.ingredients = d.ingredients.map(i=>({...i, name: i.name.toUpperCase(), isAllergen: detectAllergen(i.name)}));
+  if(d.ingredients) d.ingredients = d.ingredients.map(i=>({...i, name: i.name.toUpperCase(), isAllergen: detectAllergenFallback(i.name)}));
   if(d.recipes){
     ['lab','cucina'].forEach(dept=>{
       if(d.recipes[dept]) d.recipes[dept] = d.recipes[dept].map(r=>({
@@ -732,35 +732,48 @@ function isAnimal(n){
   return detectAnimalKeyword(n);
 }
 
-const ANIMAL_KEYWORDS = [
-  // Carni
-  'manzo','vitello','maiale','maialino','agnello','coniglio','anatra','pollo','tacchino',
-  'piccione','quaglia','fagiano','cinghiale','cervo','capriolo','oca','struzzo',
-  'cavallo','asino','capretto','abbacchio','trippa','frattaglie','fegato','rognone',
-  'animelle','cervella','lingua','coda','guanciale','lardo','pancetta','speck',
-  'prosciutto','salame','mortadella','bresaola','coppa','culatello','nduja',
-  'strutto','sugna','ciccioli','cotechino','zampone','wurstel','salsiccia',
-  // Pesce e frutti di mare (già in allergeni ma aggiungiamo per isAnimal)
-  'acciuga','alice','aragosta','astice','branzino','cefalo','cernia','dentice',
-  'gambero','granchio','merluzzo','orata','pesce','polpo','rombo','salmone',
-  'sardina','scampo','sgombro','sogliola','spigola','tonno','trota','vongola',
-  'cozza','ostrica','calamaro','seppia','anguilla','baccala','halibut',
-  // Latticini e uova
-  'burro','uova','uovo','latte','panna','formaggio','mozzarella','ricotta',
-  'parmigiano','pecorino','gorgonzola','mascarpone','yogurt','kefir',
-  // Altro
-  'miele','gelatina','colla di pesce','albume','tuorlo','maionese',
-  'foie gras','fois gras','lardo','grasso d'oca','grasso d'anatra'
-];
+const PROXY_URL = 'https://contraste-proxy.paolobottio96.workers.dev';
 
-function detectAnimalKeyword(name){
-  const n = name.toLowerCase().trim();
-  return ANIMAL_KEYWORDS.some(kw => {
-    const k = kw.toLowerCase();
-    if(n === k) return true;
-    const re = new RegExp('(^|\s|\b)' + k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '(\s|$|\b)');
-    return re.test(n);
-  });
+// Cache locale per non chiamare l'AI due volte per lo stesso ingrediente
+const _animalCache = {};
+const _allergenCache = {};
+
+// Chiamata AI via proxy Cloudflare (niente CORS)
+async function askAI(prompt){
+  try{
+    const res = await fetch(PROXY_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 5,
+        system: 'Rispondi SOLO con "si" o "no". Nessun altro testo.',
+        messages: [{role: 'user', content: prompt}]
+      })
+    });
+    const data = await res.json();
+    const answer = (data.content?.[0]?.text || '').toLowerCase().trim();
+    return answer.startsWith('s');
+  } catch(e) {
+    console.warn('AI non disponibile, uso fallback:', e);
+    return null; // null = non sappiamo
+  }
+}
+
+async function detectAnimalKeyword(name){
+  const key = name.toUpperCase();
+  if(key in _animalCache) return _animalCache[key];
+  const result = await askAI(`L'ingrediente "${name}" è di origine animale (carne, pesce, latticini, uova, miele, insaccati, ecc.)?`);
+  if(result !== null) { _animalCache[key] = result; return result; }
+  return false; // fallback conservativo
+}
+
+async function detectAllergenAI(name){
+  const key = name.toUpperCase();
+  if(key in _allergenCache) return _allergenCache[key];
+  const result = await askAI(`L'ingrediente "${name}" è uno dei 14 allergeni alimentari obbligatori secondo il Regolamento UE 1169/2011 (glutine, crostacei, uova, pesce, arachidi, soia, latte, frutta a guscio, sedano, senape, sesamo, solfiti, lupini, molluschi)?`);
+  if(result !== null) { _allergenCache[key] = result; return result; }
+  return detectAllergenFallback(name);
 }
 function isAllergen(n){ const f=db.ingredients.find(i=>i.name.toLowerCase()===n.toLowerCase()); return f?f.isAllergen:false }
 
@@ -1303,12 +1316,16 @@ function addIngFromInput(){
 }
 
 async function promptNewIng(name){
+  // Chiedi all'AI in parallelo mentre l'utente legge il modal
+  const aiPromise = Promise.all([detectAllergenAI(name), detectAnimalKeyword(name)]);
   document.getElementById('animalModalTxt').textContent=`"${name}" è un prodotto di origine animale? Se non lo è, clicca "Non animale".`;
-  const isAnim=await openAnimalModal();
-  const isAllerg = detectAllergen(name);
+  // Se l'AI dice già che è animale, non mostrare il modal
+  const [isAllerg, animalGuess] = await aiPromise;
+  const isAnim = animalGuess ? true : await openAnimalModal();
   db.ingredients.push({name, isAnimal:isAnim, isAllergen:isAllerg}); saveDB();
   selectIng(name);
-  if(isAllerg) toast(`"${name}" rilevato come allergene EU e segnalato in etichetta`, 'info');
+  if(isAllerg) toast(`"${name}" rilevato come allergene EU`, 'info');
+  if(isAnim && animalGuess) toast(`"${name}" rilevato come prodotto animale`, 'info');
 }
 
 // 14 allergeni EU - rilevamento locale per parole chiave
@@ -1356,7 +1373,7 @@ const ALLERGEN_KEYWORDS = [
   'canestrello','capasanta','cannolicchi'
 ];
 
-function detectAllergen(name){
+function detectAllergenFallback(name){
   const n = name.toLowerCase().trim();
   // Check if any keyword matches exactly or is contained in the ingredient name
   return ALLERGEN_KEYWORDS.some(kw => {
@@ -1632,7 +1649,7 @@ async function applyBatchDDT(){
 
   for(const item of window.ddtItems){
     if(item.isNew && !db.ingredients.find(i=>i.name===item.name)){
-      const isAllerg = detectAllergen(item.name);
+      const isAllerg = await detectAllergenAI(item.name);
       db.ingredients.push({name:item.name, isAnimal:true, isAllergen:isAllerg});
     }
     if(!db.animalData[dept][item.name]) db.animalData[dept][item.name]={};
@@ -1661,8 +1678,8 @@ async function addNewIngredientFromPage(){
   if(db.ingredients.find(i=>i.name.toUpperCase()===name)){
     toast(`"${name}" è già nel database`,'warn'); return;
   }
-  const isAllerg = detectAllergen(name);
-  const isAnim = detectAnimalKeyword(name) ? true : await openAnimalModal();
+  const [isAllerg, animalGuess] = await Promise.all([detectAllergenAI(name), detectAnimalKeyword(name)]);
+  const isAnim = animalGuess ? true : await openAnimalModal();
   db.ingredients.push({name, isAnimal:isAnim, isAllergen:isAllerg});
   saveDB();
   nameEl.value='';

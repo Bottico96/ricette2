@@ -725,7 +725,43 @@ function genLotto(){
   const rand=String(Math.floor(10000+Math.random()*90000));
   return `${yyyy}${mm}${dd}-${rand}`;
 }
-function isAnimal(n){ const f=db.ingredients.find(i=>i.name.toLowerCase()===n.toLowerCase()); return f?f.isAnimal:false }
+function isAnimal(n){ 
+  const f=db.ingredients.find(i=>i.name.toLowerCase()===n.toLowerCase()); 
+  if(f) return f.isAnimal;
+  // Fallback: auto-detect per parole chiave comuni
+  return detectAnimalKeyword(n);
+}
+
+const ANIMAL_KEYWORDS = [
+  // Carni
+  'manzo','vitello','maiale','maialino','agnello','coniglio','anatra','pollo','tacchino',
+  'piccione','quaglia','fagiano','cinghiale','cervo','capriolo','oca','struzzo',
+  'cavallo','asino','capretto','abbacchio','trippa','frattaglie','fegato','rognone',
+  'animelle','cervella','lingua','coda','guanciale','lardo','pancetta','speck',
+  'prosciutto','salame','mortadella','bresaola','coppa','culatello','nduja',
+  'strutto','sugna','ciccioli','cotechino','zampone','wurstel','salsiccia',
+  // Pesce e frutti di mare (già in allergeni ma aggiungiamo per isAnimal)
+  'acciuga','alice','aragosta','astice','branzino','cefalo','cernia','dentice',
+  'gambero','granchio','merluzzo','orata','pesce','polpo','rombo','salmone',
+  'sardina','scampo','sgombro','sogliola','spigola','tonno','trota','vongola',
+  'cozza','ostrica','calamaro','seppia','anguilla','baccala','halibut',
+  // Latticini e uova
+  'burro','uova','uovo','latte','panna','formaggio','mozzarella','ricotta',
+  'parmigiano','pecorino','gorgonzola','mascarpone','yogurt','kefir',
+  // Altro
+  'miele','gelatina','colla di pesce','albume','tuorlo','maionese',
+  'foie gras','fois gras','lardo','grasso d'oca','grasso d'anatra'
+];
+
+function detectAnimalKeyword(name){
+  const n = name.toLowerCase().trim();
+  return ANIMAL_KEYWORDS.some(kw => {
+    const k = kw.toLowerCase();
+    if(n === k) return true;
+    const re = new RegExp('(^|\s|\b)' + k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '(\s|$|\b)');
+    return re.test(n);
+  });
+}
 function isAllergen(n){ const f=db.ingredients.find(i=>i.name.toLowerCase()===n.toLowerCase()); return f?f.isAllergen:false }
 
 function calcExpiry(dataProd, giorni){
@@ -1409,11 +1445,29 @@ function renderIngPageGrid(){
   const q = (document.getElementById('ingSearch')?.value||'').toLowerCase().trim();
   let animalIngs = db.ingredients.filter(i=>i.isAnimal);
   if(q) animalIngs = animalIngs.filter(i=>i.name.toLowerCase().includes(q));
-  if(!animalIngs.length){
+  // Se la ricerca non trova nulla tra gli animali, cerca in tutti gli ingredienti
+  let searchMsg = '';
+  if(!animalIngs.length && q){
+    const allMatch = db.ingredients.filter(i=>i.name.toLowerCase().includes(q));
+    if(allMatch.length){
+      // Trovato ma non marcato come animale — offri di convertirlo
+      searchMsg = allMatch.map(i=>`<div style="padding:10px 14px;background:var(--surface);border-radius:8px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-weight:600">${i.name}</span>
+        <span style="font-size:11px;color:var(--text3)">Non animale — 
+          <button onclick="markAsAnimal('${i.name.replace(/'/g,"\'")}')" style="background:none;border:none;color:var(--lab);cursor:pointer;font-weight:600;font-size:11px;text-decoration:underline">Segna come animale</button>
+        </span>
+      </div>`).join('');
+    }
+  }
+  if(!animalIngs.length && !searchMsg){
     const msg = q
       ? `Nessun prodotto trovato per "<strong>${q}</strong>"`
       : 'Nessun prodotto di origine animale nel database. Aggiungine uno sopra.';
     grid.innerHTML=`<div class="no-animal-page" style="grid-column:1/-1">${msg}</div>`;
+    return;
+  }
+  if(!animalIngs.length && searchMsg){
+    grid.innerHTML = `<div style="grid-column:1/-1;padding:4px">${searchMsg}</div>`;
     return;
   }
   grid.innerHTML = animalIngs.map(ing => renderIngCard(ing.name)).join('');
@@ -1463,6 +1517,11 @@ function renderIngCard(name){
       </button>
     </div>
   </div>`;
+}
+
+function markAsAnimal(name){
+  const ing = db.ingredients.find(i=>i.name===name);
+  if(ing){ ing.isAnimal=true; saveDB(); renderIngPageGrid(); toast(`"${name}" ora è un prodotto animale`); }
 }
 
 function saveIngCard(name){
@@ -1603,10 +1662,11 @@ async function addNewIngredientFromPage(){
     toast(`"${name}" è già nel database`,'warn'); return;
   }
   const isAllerg = detectAllergen(name);
-  db.ingredients.push({name, isAnimal:true, isAllergen:isAllerg});
+  const isAnim = detectAnimalKeyword(name) ? true : await openAnimalModal();
+  db.ingredients.push({name, isAnimal:isAnim, isAllergen:isAllerg});
   saveDB();
   nameEl.value='';
-  toast(`"${name}" aggiunto!${isAllerg?' (allergene EU rilevato)':''}`);
+  toast(`"${name}" aggiunto!${isAllerg?' (allergene EU)':''}${isAnim?' (origine animale)':''}`);
   renderIngredientsPage();
 }
 
@@ -1700,12 +1760,16 @@ function renderExpiryPage(){
 }
 
 function deleteExpiredRecipe(id, d){
-  if(!confirm('Eliminare questa preparazione scaduta?')) return;
-  db.recipes[d] = db.recipes[d].filter(r=>r.id!==id);
+  // Non elimina la ricetta — resetta la data di produzione a oggi così esce dalla lista scaduti
+  const r = db.recipes[d].find(r=>r.id===id);
+  if(!r) return;
+  r.dataProd = today();
+  // Genera un nuovo lotto
+  r.lotto = genLotto();
   saveDB();
   renderExpiryPage();
-  if(curId===id){ curId=null; renderSidebar(); document.getElementById('mainArea').innerHTML='<div class="welcome"><div style="font-size:48px;opacity:.15;margin-bottom:16px">✦</div><h2>Seleziona o crea una ricetta</h2></div>'; }
-  toast('Preparazione eliminata');
+  updateExpiryBadge();
+  toast('Data produzione aggiornata a oggi');
 }
 
 function goToRecipe(id, d){
@@ -1861,6 +1925,7 @@ window.renderSidebar = renderSidebar;
 window.renderIngredientsPage = renderIngredientsPage;
 window.renderIngPageGrid = renderIngPageGrid;
 window.saveIngCard = saveIngCard;
+window.markAsAnimal = markAsAnimal;
 window.addNewIngredientFromPage = addNewIngredientFromPage;
 window.switchIngTab = switchIngTab;
 window.applyBatchDDT = applyBatchDDT;

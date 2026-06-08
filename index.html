@@ -137,10 +137,15 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-
 .topnav{display:flex;align-items:center;justify-content:space-between;background:#0f1923;padding:0 28px;height:56px;position:sticky;top:0;z-index:200;box-shadow:0 2px 16px rgba(0,0,0,.25);transition:background .35s}
 body.dept-lab .topnav{background:#0f2135}
 body.dept-cucina .topnav{background:#3d1a0a}
-.nav-logo{font-family:'Cormorant Garamond',serif;font-size:21px;font-weight:700;color:#f0ede8;letter-spacing:.2px}
-.nav-logo span{font-weight:400;font-style:italic;color:#7a8a9a;transition:color .35s}
-body.dept-lab .nav-logo span{color:#6a9ec4}
-body.dept-cucina .nav-logo span{color:#c4896a}
+.nav-logo{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:700;color:#f0ede8;letter-spacing:.5px;text-transform:uppercase;line-height:1;transition:opacity .3s}
+.nav-logo-lab{display:flex;align-items:baseline;gap:6px}
+.nav-logo-cuc{display:none;align-items:baseline;gap:6px}
+.nav-logo .word-normal{font-weight:700;font-style:normal;color:#f0ede8}
+.nav-logo .word-italic{font-weight:400;font-style:italic;transition:color .35s}
+body:not(.dept-cucina) .nav-logo .word-italic{color:#6a9ec4}
+body.dept-cucina .nav-logo .word-italic{color:#c4896a}
+body.dept-cucina .nav-logo-lab{display:none}
+body.dept-cucina .nav-logo-cuc{display:flex}
 .dept-sw{display:flex;gap:3px;background:rgba(255,255,255,.07);border-radius:8px;padding:3px}
 .dept-btn{padding:6px 22px;border-radius:6px;border:none;cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;transition:all .2s;color:rgba(255,255,255,.45);background:transparent;letter-spacing:.4px;text-transform:uppercase}
 .dept-btn:hover{color:rgba(255,255,255,.75)}
@@ -357,7 +362,10 @@ body.dept-cucina .welcome p{color:var(--cuc-bd)}
 <body>
 
 <nav class="topnav">
-  <div class="nav-logo">Cucina <span>& Lab</span></div>
+  <div class="nav-logo">
+    <div class="nav-logo-lab"><span class="word-normal">LAB</span><span class="word-italic">oratorio</span></div>
+    <div class="nav-logo-cuc"><span class="word-normal">CUCINA</span><span class="word-italic"> — Lab</span></div>
+  </div>
   <div class="dept-sw">
     <button class="dept-btn lab-on" id="btnLab" onclick="switchDept('lab')">Laboratorio</button>
     <button class="dept-btn" id="btnCuc" onclick="switchDept('cucina')">Cucina</button>

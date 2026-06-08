@@ -25,8 +25,11 @@ input[type=text],input[type=date]{text-transform:uppercase}
 input[type=text]:focus,input[type=date]:focus,select:focus{outline:none;border-color:var(--dc)!important;background:#fff!important}
 
 .nav{background:var(--nav-bg);padding:0 16px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;transition:background .3s}
-.nav-title{font-size:16px;font-weight:700;color:#fff}
-.nav-title em{font-weight:300;font-style:normal;opacity:.55;font-size:13px}
+.nav-title{font-family:'Outfit',sans-serif;font-size:22px;font-weight:700;color:#fff;letter-spacing:.8px;text-transform:uppercase;line-height:1}
+.nav-title-lab{display:block}
+.nav-title-cuc{display:none}
+body.dept-cucina .nav-title-lab{display:none}
+body.dept-cucina .nav-title-cuc{display:block}
 .dot{width:8px;height:8px;border-radius:50%;background:#555;transition:background .3s;flex-shrink:0}
 .dot.ok{background:#2ecc71}.dot.err{background:#e74c3c}
 .dot.spin{background:#f39c12;animation:blink 1s infinite}
@@ -93,7 +96,10 @@ input[type=text]:focus,input[type=date]:focus,select:focus{outline:none;border-c
 <body>
 
 <nav class="nav">
-  <div class="nav-title">Cucina <em>& Lab</em></div>
+  <div class="nav-title">
+    <div class="nav-title-lab">LABORATORIO</div>
+    <div class="nav-title-cuc">CUCINA</div>
+  </div>
   <div id="dot" class="dot spin"></div>
 </nav>
 <div class="dept-wrap">
@@ -105,7 +111,7 @@ input[type=text]:focus,input[type=date]:focus,select:focus{outline:none;border-c
 
 <div class="tabs">
   <button id="tIng" class="tab on" onclick="switchTab('ing')">Ingrediente</button>
-  <button id="tDDT" class="tab" onclick="switchTab('ddt')">DDT Batch</button>
+  <button id="tDDT" class="tab" onclick="switchTab('ddt')">Inserisci DDT</button>
 </div>
 
 <div class="content">

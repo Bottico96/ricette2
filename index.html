@@ -1496,7 +1496,7 @@ function renderIngPageGrid(){
 
 function renderIngCard(name){
   const d   = db.animalData[dept]?.[name] || {};
-  const n   = name.replace(/'/g,"\'");
+  const n   = name.replace(/'/g,"\\'"); // kept for other uses
   const isLab = dept==='lab';
   const updated = d._updated
     ? `<div class="last-update">Ultimo aggiornamento: ${d._updated}</div>` : '';
@@ -1526,11 +1526,11 @@ function renderIngCard(name){
           <input id="ing-lotto-${name}" type="text" value="${d.lotto||''}" placeholder="L240315…"></div>
       </div>
       <button class="save-ing-btn" style="background:${isLab?'var(--lab)':'var(--cuc)'}"
-        onclick="saveIngCard('${n}')">
+        data-ing="${name.replace(/"/g,'&quot;')}" onclick="saveIngCard(this.dataset.ing)">
          Salva — ${isLab?'Laboratorio':'Cucina'}
       </button>
       ${updated}
-      <button onclick="removeIngredientFromDB('${n}')"
+      <button data-ing="${name.replace(/"/g,'&quot;')}" onclick="removeIngredientFromDB(this.dataset.ing)"
         style="margin-top:6px;width:100%;background:none;border:1px solid var(--border);border-radius:7px;padding:5px;font-size:11px;color:var(--text3);cursor:pointer;font-family:'Outfit',sans-serif;transition:all .2s"
         onmouseover="this.style.color='var(--danger)';this.style.borderColor='var(--danger)'"
         onmouseout="this.style.color='var(--text3)';this.style.borderColor='var(--border)'">

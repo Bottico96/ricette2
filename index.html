@@ -998,6 +998,9 @@ function doPrintSimple(){
 function openRecipe(id){
   curId=id;
   const r=db.recipes[dept].find(r=>r.id===id);
+  if(!r) return;
+  r.dataProd = today(); // sempre la data odierna ad ogni apertura, per evitare etichette con scadenza già passata
+  saveDB();
   renderSidebar();
   if(r.simple) renderSimpleForm(r);
   else renderForm(r);

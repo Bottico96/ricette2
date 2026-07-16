@@ -370,6 +370,9 @@ body.dept-cucina .welcome p{color:var(--cuc-bd)}
     <button class="nav-page-btn page-on" id="btnPageRecipes" onclick="showPage('recipes')">Ricette</button>
     <button class="nav-page-btn" id="btnPageIngredients" onclick="showPage('ingredients')">Ingredienti</button>
     <button class="nav-page-btn" id="btnPageExpiry" onclick="showPage('expiry')">In Scadenza <span id="expiryNavBadge" style="display:none;background:#c0392b;color:#fff;border-radius:20px;padding:1px 6px;font-size:10px;margin-left:2px"></span></button>
+    <button class="nav-page-btn" onclick="downloadBackup()" title="Scarica una copia di sicurezza sul PC">⬇ Backup</button>
+    <button class="nav-page-btn" onclick="document.getElementById('restoreFile').click()" title="Ripristina da un file di backup">⬆ Ripristina</button>
+    <input type="file" id="restoreFile" accept="application/json,.json" style="display:none" onchange="restoreBackup(this.files[0])">
     <div class="nav-status"><span class="sdot"></span><span id="syncStatus">Connessione…</span></div>
   </div>
 </nav>
@@ -596,6 +599,7 @@ const DEFAULT_DB = {
 let db = JSON.parse(JSON.stringify(DEFAULT_DB));
 let _saveTimer = null;
 let _lastSaved = null;
+let _dbLoaded  = false;   // diventa true solo dopo un caricamento riuscito da Firebase
 
 // Show sync status in nav
 function setSyncStatus(msg, color){
@@ -603,7 +607,54 @@ function setSyncStatus(msg, color){
   if(el){ el.textContent = msg; el.style.color = color||'#6b6258'; }
 }
 
+// ── SICUREZZA DATI ────────────────────────────────────────
+const CACHE_KEY = 'etichette_db_cache_v1';
+function recipeCount(x){
+  try{ return (x.recipes.lab.length||0) + (x.recipes.cucina.length||0); }catch(_){ return 0; }
+}
+function cacheSave(){ try{ localStorage.setItem(CACHE_KEY, JSON.stringify(db)); }catch(_){} }
+function cacheLoad(){ try{ const s=localStorage.getItem(CACHE_KEY); return s?JSON.parse(s):null; }catch(_){ return null; } }
+
+// Scarica l'intero database come file JSON (copia di sicurezza sul PC)
+function downloadBackup(){
+  try{
+    const blob = new Blob([JSON.stringify(db,null,2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `backup-ricette-${today()}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    if(typeof toast==='function') toast('Backup scaricato');
+  }catch(e){ console.error(e); if(typeof toast==='function') toast('Errore backup','warn'); }
+}
+
+// Ripristina da un file JSON e lo ri-pubblica su Firebase (azione esplicita)
+async function restoreBackup(file){
+  if(!file) return;
+  const input = document.getElementById('restoreFile');
+  try{
+    const parsed = JSON.parse(await file.text());
+    if(!parsed || !parsed.recipes){ if(typeof toast==='function') toast('File non valido','warn'); if(input) input.value=''; return; }
+    const n = recipeCount(parsed);
+    if(!confirm(`Ripristinare ${n} ricette da questo backup?\nSostituirà i dati attuali su tutti i dispositivi.`)){ if(input) input.value=''; return; }
+    db = normalizeDB(parsed);
+    _dbLoaded = true;
+    cacheSave();
+    const snapshot = JSON.stringify(db);
+    await setDoc(DB_DOC, { data: snapshot });
+    _lastSaved = snapshot;
+    setSyncStatus('✓ Ripristinato e sincronizzato','#2d6a4f');
+    renderSidebar(); updateExpiryBadge();
+    if(typeof toast==='function') toast('Ripristino completato');
+  }catch(e){ console.error(e); if(typeof toast==='function') toast('Errore nel ripristino','warn'); }
+  if(input) input.value='';
+}
+
 async function saveDB(){
+  // Protezione anti-perdita-dati: se il DB non è stato caricato da Firebase
+  // (es. offline o accesso negato), salvare significherebbe sovrascrivere i dati
+  // remoti con il database vuoto di default. Quindi si blocca il salvataggio.
+  if(!_dbLoaded){ setSyncStatus('! NON salvato: DB non caricato','#c0392b'); return; }
   // Debounce: wait 600ms after last call before actually saving
   if(_saveTimer) clearTimeout(_saveTimer);
   setSyncStatus(' Salvataggio…','#e67e22');
@@ -614,6 +665,7 @@ async function saveDB(){
     try{
       await setDoc(DB_DOC, { data: snapshot });
       _lastSaved = snapshot;
+      cacheSave();
       setSyncStatus('✓ Sincronizzato','#2d6a4f');
     } catch(e){
       console.error(e);
@@ -631,8 +683,17 @@ function startRealtimeSync(){
       const remoteStr = JSON.stringify(remote);
       // Don't overwrite if this is our own save coming back
       if(remoteStr === _lastSaved){ setSyncStatus('✓ Sincronizzato','#2d6a4f'); return; }
+      // ANTI-CANCELLAZIONE: se dal server arriva un DB senza ricette ma in locale
+      // ne ho, è quasi certo che sia una sovrascrittura errata di un altro client.
+      // Non la applico: proteggo i dati che ho a schermo.
+      if(_dbLoaded && recipeCount(remote)===0 && recipeCount(db)>0){
+        setSyncStatus('! DB remoto vuoto: ignorato, dati locali protetti','#c0392b');
+        return;
+      }
       db = normalizeDB(remote);
       _lastSaved = remoteStr;
+      _dbLoaded = true;
+      cacheSave();
       // Refresh UI without disturbing current dept or open recipe
       renderSidebar();
       if(currentPage==='ingredients') renderIngredientsPage();
@@ -659,7 +720,7 @@ function normalizeDB(d){
         ingredients: (r.ingredients||[]).map(i=>i.toUpperCase()),
         animalSources: Object.fromEntries(Object.entries(r.animalSources||{}).map(([k,v])=>[k.toUpperCase(),v])),
         note: (r.note||'').toUpperCase(),
-        lotto: r.lotto||null,
+        lottoNum: r.lottoNum||null,
         qty: r.qty||'',
         qtyUnit: r.qtyUnit||'g'
       }));
@@ -684,7 +745,11 @@ function normalizeDB(d){
   // Assign lotto and qty to existing recipes that lack them
   ['lab','cucina'].forEach(dk=>{
     if(d.recipes && d.recipes[dk]) d.recipes[dk].forEach(r=>{
-      if(!r.lotto) r.lotto=genLotto();
+      if(!r.lottoNum){
+        const old=(r.lotto||'').split('-')[1];   // recupera il numero da un vecchio lotto, se presente
+        r.lottoNum = /^\d{5}$/.test(old||'') ? old : lottoNum();
+      }
+      delete r.lotto;                            // il lotto non è più congelato: si ricalcola dalla data
       if(r.qty===undefined) r.qty='';
       if(!r.qtyUnit) r.qtyUnit='g';
     });
@@ -702,10 +767,18 @@ async function initDB(){
       // First time: write defaults to Firebase
       await setDoc(DB_DOC, { data: JSON.stringify(db) });
     }
+    _dbLoaded = true;
+    cacheSave();
     setSyncStatus('✓ Sincronizzato','#2d6a4f');
   } catch(e){
     console.error('Firebase init error', e);
-    setSyncStatus('! Offline','#c0392b');
+    const c = cacheLoad();
+    if(c && recipeCount(c)>0){
+      db = normalizeDB(c);
+      setSyncStatus('! Offline — copia locale (sola lettura, non salvo)','#c0392b');
+    } else {
+      setSyncStatus('! Offline — dati non caricati, NON creare ricette','#c0392b');
+    }
   }
   startRealtimeSync();
   renderSidebar();
@@ -721,13 +794,15 @@ let resolveCopy   = null;
 // ── UTILS ────────────────────────────────────────────────
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2) }
 function today(){ return new Date().toISOString().split('T')[0] }
-function genLotto(){
-  const n=new Date();
-  const dd=String(n.getDate()).padStart(2,'0');
-  const mm=String(n.getMonth()+1).padStart(2,'0');
-  const yyyy=n.getFullYear();
-  const rand=String(Math.floor(10000+Math.random()*90000));
-  return `${yyyy}${mm}${dd}-${rand}`;
+function lottoNum(){ return String(Math.floor(10000+Math.random()*90000)); }
+// Il lotto ha la data SEMPRE derivata da dataProd (formato DDMMYYYY) + un numero
+// stabile per ricetta (r.lottoNum). Così la data del lotto non può mai divergere
+// dalla data di produzione, e il numero identificativo resta invariato nel tempo.
+function genLotto(r){
+  const src=(r&&r.dataProd)||today();          // 'YYYY-MM-DD'
+  const [y,m,d]=src.split('-');
+  if(r){ if(!r.lottoNum) r.lottoNum=lottoNum(); return `${d}${m}${y}-${r.lottoNum}`; }
+  return `${d}${m}${y}-${lottoNum()}`;
 }
 function isAnimal(n){ 
   const f=db.ingredients.find(i=>i.name.toLowerCase()===n.toLowerCase()); 
@@ -853,12 +928,12 @@ function renderSidebar(){
 
 // ── RECIPE CRUD ──────────────────────────────────────────
 function newRecipe(){
-  const r={id:uid(),name:'',ingredients:[],animalSources:{},dataProd:today(),giorniScadenza:3,temp:'+3',note:'',lotto:genLotto(),qty:'',qtyUnit:'g'};
+  const r={id:uid(),name:'',ingredients:[],animalSources:{},dataProd:today(),giorniScadenza:3,temp:'+3',note:'',lottoNum:lottoNum(),qty:'',qtyUnit:'g'};
   db.recipes[dept].unshift(r); saveDB();
   curId=r.id; renderSidebar(); renderForm(r);
 }
 function newSimpleRecipe(){
-  const r={id:uid(),name:'',dataProd:today(),giorniScadenza:3,temp:'+3',note:'',simple:true,lotto:genLotto(),qty:'',qtyUnit:'g'};
+  const r={id:uid(),name:'',dataProd:today(),giorniScadenza:3,temp:'+3',note:'',simple:true,lottoNum:lottoNum(),qty:'',qtyUnit:'g'};
   db.recipes[dept].unshift(r); saveDB();
   curId=r.id; renderSidebar(); renderSimpleForm(r);
 }
@@ -1078,7 +1153,7 @@ async function copyToOther(){
   document.getElementById('copyModalTitle').textContent=`Copia in ${label(o)}`;
   document.getElementById('copyModalTxt').textContent=`Copia "${r.name}" nel ${label(o)}? Le due versioni saranno indipendenti. I dati DDT/lotto non vengono copiati.`;
   const ok=await openCopyModal(); if(!ok) return;
-  const copy={...JSON.parse(JSON.stringify(r)), id:uid(), animalSources:{}};
+  const copy={...JSON.parse(JSON.stringify(r)), id:uid(), animalSources:{}, lottoNum:lottoNum()}; delete copy.lotto;
   db.recipes[o].unshift(copy); saveDB();
   toast(`Ricetta copiata nel ${label(o)}!`,'info');
 }
@@ -1788,8 +1863,8 @@ function deleteExpiredRecipe(id, d){
   const r = db.recipes[d].find(r=>r.id===id);
   if(!r) return;
   r.dataProd = today();
-  // Genera un nuovo lotto
-  r.lotto = genLotto();
+  r.lottoNum = lottoNum();   // nuova produzione → nuovo numero di lotto (la data segue dataProd)
+  delete r.lotto;
   saveDB();
   renderExpiryPage();
   updateExpiryBadge();
@@ -1825,7 +1900,7 @@ function buildLabelHTML(r){
   const exp = calcExpiry(r.dataProd, r.giorniScadenza);
   const tempStr = r.temp==='-18'?'-18°C':r.temp==='+3'?'+3°C':'Temp. Ambiente';
   const addr = dept==='lab' ? ADDR_LAB : ADDR_CUC;
-  const lotto = r.lotto || genLotto();
+  const lotto = genLotto(r);
 
   // Ingredients list (non-animal names)
   const ingsLine = r.ingredients.length
@@ -1966,6 +2041,8 @@ window.goToRecipe = goToRecipe;
 window.toggleAnimalSource = setAnimalSrc; // alias
 window.updateAnimal = updateAnimal;
 window.setAnimalSrc = setAnimalSrc;
+window.downloadBackup = downloadBackup;
+window.restoreBackup = restoreBackup;
 </script>
 </body>
 </html>

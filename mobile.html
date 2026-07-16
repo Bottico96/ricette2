@@ -277,17 +277,23 @@ const DB_DOC = doc(getFirestore(initializeApp(cfg)), 'ristorante', 'database');
 
 let db={ingredients:[],animalData:{lab:{},cucina:{}},recipes:{lab:[],cucina:[]}};
 let dept='lab', tab='ing', ddtItems=[], _t=null, _last=null;
+let _dbLoaded=false;
+const CACHE_KEY='etichette_db_cache_v1';
+function recipeCount(x){ try{ return (x.recipes.lab.length||0)+(x.recipes.cucina.length||0); }catch(_){ return 0; } }
+function cacheSave(){ try{ localStorage.setItem(CACHE_KEY, JSON.stringify(db)); }catch(_){} }
+function cacheLoad(){ try{ const s=localStorage.getItem(CACHE_KEY); return s?JSON.parse(s):null; }catch(_){ return null; } }
 
 const $=id=>document.getElementById(id);
 const setDot=s=>{ $('dot').className='dot '+s; };
 
 async function saveDB(){
+  if(!_dbLoaded){ setDot('err'); if(window.toast) toast('Dati non caricati: salvataggio bloccato','err'); return; }
   if(_t) clearTimeout(_t);
   setDot('spin');
   _t=setTimeout(async()=>{
     const s=JSON.stringify(db);
     if(s===_last){setDot('ok');return;}
-    try{ await setDoc(DB_DOC,{data:s}); _last=s; setDot('ok'); }
+    try{ await setDoc(DB_DOC,{data:s}); _last=s; cacheSave(); setDot('ok'); }
     catch(e){ setDot('err'); }
   },600);
 }
@@ -297,14 +303,20 @@ async function init(){
   try{
     const s=await getDoc(DB_DOC);
     if(s&&s.exists()){ db=JSON.parse(s.data().data); fixDB(); }
-    setDot('ok');
-  }catch(e){ setDot('err'); }
+    _dbLoaded=true; cacheSave(); setDot('ok');
+  }catch(e){
+    const c=cacheLoad();
+    if(c && recipeCount(c)>0){ db=c; fixDB(); }  // mostro l'ultima copia locale, resto in sola lettura
+    setDot('err');
+  }
   onSnapshot(DB_DOC,s=>{
     if(!s||!s.exists()) return;
     try{
       const r=JSON.parse(s.data().data);
       if(JSON.stringify(r)===_last) return;
-      db=r; fixDB();
+      // ANTI-CANCELLAZIONE: non applico un DB remoto svuotato se in locale ho ricette
+      if(_dbLoaded && recipeCount(r)===0 && recipeCount(db)>0){ setDot('err'); return; }
+      db=r; fixDB(); _dbLoaded=true; cacheSave();
       if(tab==='ing') renderIngList();
     }catch(e){}
   });

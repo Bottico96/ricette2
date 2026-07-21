@@ -662,13 +662,17 @@ async function saveDB(){
     const snapshot = JSON.stringify(db);
     // Don't save if nothing changed
     if(snapshot === _lastSaved) { setSyncStatus('✓ Sincronizzato','#2d6a4f'); return; }
+    // Marco SUBITO lo snapshot come "nostro", prima della scrittura: così quando
+    // onSnapshot rimanda indietro l'eco, viene riconosciuto e ignorato, ed evitiamo
+    // il re-render della scheda che ruberebbe il focus mentre si scrive.
+    _lastSaved = snapshot;
+    cacheSave();
     try{
       await setDoc(DB_DOC, { data: snapshot });
-      _lastSaved = snapshot;
-      cacheSave();
       setSyncStatus('✓ Sincronizzato','#2d6a4f');
     } catch(e){
       console.error(e);
+      _lastSaved = null;   // salvataggio fallito: riabilita la ri-sincronizzazione
       setSyncStatus('! Errore sync','#c0392b');
     }
   }, 600);
@@ -702,7 +706,11 @@ function startRealtimeSync(){
       // Re-render open recipe if it still exists in the new data
       if(curId){
         const r = db.recipes[dept].find(r=>r.id===curId);
-        if(r) renderForm(r);
+        // Ma non mentre l'utente sta scrivendo: sostituire il DOM del form gli
+        // farebbe perdere il focus a ogni tasto.
+        const ae = document.activeElement;
+        const editing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName||'');
+        if(r && !editing) renderForm(r);
       }
       setSyncStatus('✓ Sincronizzato','#2d6a4f');
     } catch(e){ console.error('Sync parse error',e); }
@@ -1585,7 +1593,10 @@ function renderIngCard(name){
 
   return `<div class="ing-card">
     <div class="ing-card-head" style="background:${isLab?'var(--lab-lt)':'var(--cuc-lt)'}">
-      <div class="ing-card-name" style="color:${isLab?'var(--lab)':'var(--cuc)'}"> ${name}</div>
+      <div class="ing-card-name" style="color:${isLab?'var(--lab)':'var(--cuc)'}"> ${name}
+        <button data-ing="${name.replace(/"/g,'&quot;')}" onclick="renameIngredient(this.dataset.ing)" title="Rinomina ingrediente"
+          style="background:none;border:none;cursor:pointer;font-size:12px;opacity:.55;margin-left:5px;padding:0">✏️</button>
+      </div>
       <div class="ing-card-depts">
         ${usedInLab?'<span class="pill pill-lab">Lab</span>':''}
         ${usedInCuc?'<span class="pill pill-cuc">Cucina</span>':''}
@@ -1622,6 +1633,42 @@ function markAsAnimal(name){
   const ing = db.ingredients.find(i=>i.name===name);
   if(ing){ ing.isAnimal=true; saveDB(); renderIngPageGrid(); toast(`"${name}" ora è un prodotto animale`); }
 }
+
+// Rinomina un ingrediente ovunque sia usato: lista, ricette, fonti e dati DDT.
+function renameIngredient(oldName){
+  const cur = oldName;
+  const raw = prompt(`Nuovo nome per "${cur}":`, cur);
+  if(raw===null) return;
+  const neu = raw.trim().toUpperCase();
+  if(!neu || neu===cur) return;
+  if(db.ingredients.some(i=>i.name===neu)){ toast(`Esiste già un ingrediente "${neu}"`,'warn'); return; }
+  // 1) lista principale
+  const ing = db.ingredients.find(i=>i.name===cur);
+  if(ing) ing.name = neu;
+  // 2) ricette: array ingredienti + chiavi animalSources (in entrambi i reparti)
+  ['lab','cucina'].forEach(dk=>{
+    (db.recipes[dk]||[]).forEach(r=>{
+      if(Array.isArray(r.ingredients)) r.ingredients = r.ingredients.map(n=> n===cur ? neu : n);
+      if(r.animalSources && (cur in r.animalSources)){
+        r.animalSources[neu] = r.animalSources[cur];
+        delete r.animalSources[cur];
+      }
+    });
+  });
+  // 3) dati DDT (animalData) in entrambi i reparti
+  ['lab','cucina'].forEach(dk=>{
+    if(db.animalData && db.animalData[dk] && (cur in db.animalData[dk])){
+      db.animalData[dk][neu] = db.animalData[dk][cur];
+      delete db.animalData[dk][cur];
+    }
+  });
+  saveDB();
+  renderIngPageGrid();
+  renderSidebar();
+  if(curId){ const r=db.recipes[dept].find(x=>x.id===curId); if(r) renderForm(r); }
+  toast(`Rinominato in "${neu}"`);
+}
+window.renameIngredient = renameIngredient;
 
 function saveIngCard(name){
   if(!db.animalData[dept]) db.animalData[dept]={};
